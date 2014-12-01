@@ -6,6 +6,7 @@ using OAuth2. For ASP.NET Web apps (MVC or Forms) that use ASP.NET Identity 2.0
 with OWIN as described at http://www.asp.net/identity you can integrate with Office 365 
 REST APIs http://msdn.microsoft.com/en-us/office/office365/api/api-catalog 
 using this middleware authentication provide (your tenant or multi-tenant). 
+
 This code is in use at http://www.FreeBusy.io and http://www.MileLogr.com
 
 Copyright 2014 Stefan Negritoiu
