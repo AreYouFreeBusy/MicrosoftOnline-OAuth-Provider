@@ -1,10 +1,12 @@
 AzureAD-OAuth-Provider
 ======================
 
-Azure AD is used by Office 365 tenants and supports authenticating users using
-OAuth. If you want to build Office 365 (Mail, Calendar, Contacts) apps you can
-use this provider to authenticate users for your tenant or multi-tenant. 
-I wrote this originally for http://www.FreeBusy.io and http://www.MileLogr.com
+Azure AD is used by Office 365 tenants and supports AuthN and AuthZ using 
+OAuth2. For ASP.NET Web apps that use ASP.NET Identity 2.0 with OWIN as
+described at http://www.asp.net/identity you can integrate with Office 365 
+REST APIs http://msdn.microsoft.com/en-us/office/office365/api/api-catalog 
+using this middleware authentication provide (your tenant or multi-tenant). 
+This code is in use at http://www.FreeBusy.io and http://www.MileLogr.com
 
 Copyright 2014 Stefan Negritoiu
 
