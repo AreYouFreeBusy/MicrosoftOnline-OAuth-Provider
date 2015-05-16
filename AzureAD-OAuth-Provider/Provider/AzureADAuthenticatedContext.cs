@@ -22,11 +22,11 @@ namespace Owin.Security.Providers.AzureAD
         /// <param name="user">The JSON-serialized user</param>
         /// <param name="accessToken">Azure AD Access token</param>
         public AzureADAuthenticatedContext(IOwinContext context, 
-            JObject idTokenObj, string accessToken, string expires, string refreshToken, string pwdexpires, string pwdchange) : base(context)
+            JObject idTokenObj, string accessToken, string scope, string expires, string refreshToken, string pwdexpires, string pwdchange) 
+            : base(context)
         {
             AccessToken = accessToken;
             RefreshToken = refreshToken;
-            PasswordChangeUrl = pwdchange;
 
             int expiresValue;
             if (Int32.TryParse(expires, NumberStyles.Integer, CultureInfo.InvariantCulture, out expiresValue)) 
@@ -34,9 +34,13 @@ namespace Owin.Security.Providers.AzureAD
                 ExpiresIn = TimeSpan.FromSeconds(expiresValue);
             }
 
+            string[] scopeSeparators = new string[1] { " " };
+            Scope = scope.Split(scopeSeparators, StringSplitOptions.RemoveEmptyEntries);
+
             if (Int32.TryParse(pwdexpires, NumberStyles.Integer, CultureInfo.InvariantCulture, out expiresValue)) 
             {
                 PasswordExpiresIn = TimeSpan.FromSeconds(expiresValue);
+                PasswordChangeUrl = pwdchange;
             }
 
             if (idTokenObj != null) 
@@ -53,6 +57,11 @@ namespace Owin.Security.Providers.AzureAD
         /// Gets the AzureAD OAuth access token
         /// </summary>
         public string AccessToken { get; private set; }
+
+        /// <summary>
+        /// Gets the scope for this AzureAD OAuth access token
+        /// </summary>
+        public string[] Scope { get; private set; }
 
         /// <summary>
         /// Gets the AzureAD access token expiration time

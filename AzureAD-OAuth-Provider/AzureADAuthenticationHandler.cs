@@ -83,13 +83,14 @@ namespace Owin.Security.Providers.AzureAD
                 string text = await tokenResponse.Content.ReadAsStringAsync();
 
                 // Deserializes the token response
-                dynamic response = JsonConvert.DeserializeObject<dynamic>(text);
-                string accessToken = (string)response.access_token;
-                string expires = (string)response.expires_in;
-                string refreshToken = (string)response.refresh_token;
-                string pwdexpires = (string)response.pwd_exp;
-                string pwdchange = (string)response.pwd_url;
-                string idToken = (string)response.id_token;
+                JObject response = JsonConvert.DeserializeObject<JObject>(text);
+                string accessToken = response.Value<string>("access_token");
+                string scope = response.Value<string>("scope");
+                string expires = response.Value<string>("expires_in");
+                string refreshToken = response.Value<string>("refresh_token");
+                string pwdexpires = response.Value<string>("pwd_exp");
+                string pwdchange = response.Value<string>("pwd_url");
+                string idToken = response.Value<string>("id_token");
 
                 // id_token should be a Base64 url encoded JSON web token
                 JObject id = null;
@@ -99,7 +100,7 @@ namespace Owin.Security.Providers.AzureAD
                     if (!String.IsNullOrEmpty(payload)) id = JObject.Parse(payload);
                 }
 
-                var context = new AzureADAuthenticatedContext(Context, id, accessToken, expires, refreshToken, pwdexpires, pwdchange);
+                var context = new AzureADAuthenticatedContext(Context, id, accessToken, scope, expires, refreshToken, pwdexpires, pwdchange);
                 context.Identity = new ClaimsIdentity(
                     Options.AuthenticationType,
                     ClaimsIdentity.DefaultNameClaimType,
