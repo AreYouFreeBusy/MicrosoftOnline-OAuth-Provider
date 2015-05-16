@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Owin.Security.Providers.AzureAD</id>
+    <version>1.0.0</version>
+    <title>Owin.Security.Providers.AzureAD</title>
+    <authors>Stefan Negritoiu</authors>
+    <owners>Stefan Negritoiu</owners>
+    <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
+    <projectUrl>https://github.com/AreYouFreeBusy/AzureAD-OAuth-Provider</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+      AzureAD OAuth provider for OWIN to use with ASP.NET 4.5
+    </description>
+    <releaseNotes>
+      Introducing AzureAD OAuth provider for OWIN to use with ASP.NET 4.5
+    </releaseNotes>
+    <copyright>Copyright 2015 Stefan Negritoiu</copyright>
+    <tags>owin katana oauth asp.net azure azuread ad adfs</tags>
+    <dependencies>
+      <dependency id="Microsoft.Owin.Security" version="2.1.0" />
+      <dependency id="Newtonsoft.Json" version="6.0.1" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\AzureAD-OAuth-Provider\bin\Release\Owin.Security.Providers.AzureAD.dll" target="lib\net45" /> 
+  </files> 
+</package>

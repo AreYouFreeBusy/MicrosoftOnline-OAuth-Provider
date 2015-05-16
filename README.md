@@ -1,24 +1,17 @@
 AzureAD-OAuth-Provider
 ======================
 
-Azure AD is used by Office 365 tenants and supports authentication and authorization 
-using OAuth2. For ASP.NET Web apps (MVC or Forms) that use ASP.NET Identity 2.0
-with OWIN as described at http://www.asp.net/identity you can integrate with Office 365 
-REST APIs http://msdn.microsoft.com/en-us/office/office365/api/api-catalog 
-using this middleware authentication provide (your tenant or multi-tenant). 
+Azure AD is used by Office 365 tenants and supports authentication and authorization using OAuth2. 
 
-This code is in use at http://www.FreeBusy.io and http://www.MileLogr.com
+ASP.NET MVC 5 Web apps that use ASP.NET Identity 2.0 with OWIN as described at 
+http://www.asp.net/identity you can integrate with Office 365 REST APIs 
+http://msdn.microsoft.com/en-us/office/office365/api/api-catalog 
+using this middleware authentication provider (either for your tenant or multi-tenant). 
 
-Copyright 2014 Stefan Negritoiu
+This library was originally developed for and is in use at https://freebusy.io
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This library is available as a NuGet package at https://www.nuget.org/packages/Owin.Security.Providers.AzureAD/
 
-	http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+How to Use
+======================
+See an example of how to configure your ASP.NET web app at https://github.com/AreYouFreeBusy/AzureAD-OAuth-Provider/blob/master/AzureAD-OAuth-Demo/App_Start/Startup.Auth.cs
