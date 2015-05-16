@@ -70,7 +70,7 @@ namespace AzureAD_OAuth_Demo
                 ClientSecret = "",
                 Provider = new AzureADAuthenticationProvider()
             };
-            azureAdOptions.Resource.Add("https://outlook.office365.com/");
+            azureAdOptions.Resource.Add("https://graph.windows.net/");
             app.UseAzureADAuthentication(azureAdOptions);
         }
     }
