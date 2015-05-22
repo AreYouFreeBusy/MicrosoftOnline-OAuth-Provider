@@ -20,6 +20,7 @@ namespace Owin.Security.Providers.AzureAD
             AuthenticationMode = AuthenticationMode.Passive;
             BackchannelTimeout = TimeSpan.FromSeconds(60);
             Resource = new List<string>();
+            RequestLogging = false;
         }
 
         /// <summary>
@@ -33,9 +34,21 @@ namespace Owin.Security.Providers.AzureAD
         public string ClientSecret { get; set; }
 
         /// <summary>
-        /// A list of permissions to request.
+        ///     A list of permissions to request.
         /// </summary>
         public IList<string> Resource { get; private set; }
+
+        /// <summary>
+        ///     Controls whether request content is logged (verbose level). 
+        ///     Not meant for use in production since data is sensitive (client secret, etc.).
+        /// </summary>
+        public bool RequestLogging { get; set; }
+
+        /// <summary>
+        ///     Controls whether response content is logged (verbose level). 
+        ///     Not meant for use in production since data is sensitive (token, etc.).
+        /// </summary>
+        public bool ResponseLogging { get; set; }
 
         /// <summary>
         ///     Gets or sets the a pinned certificate validator to use to validate the endpoints used
@@ -68,7 +81,7 @@ namespace Owin.Security.Providers.AzureAD
         /// <summary>
         ///     The request path within the application's base path where the user-agent will be returned.
         ///     The middleware will process this request when it arrives.
-        ///     Default value is "/signin-aad".
+        ///     Default value is "/signin-azuread".
         /// </summary>
         public PathString CallbackPath { get; set; }
 

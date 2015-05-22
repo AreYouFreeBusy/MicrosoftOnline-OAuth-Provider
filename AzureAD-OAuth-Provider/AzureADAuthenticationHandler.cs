@@ -77,11 +77,22 @@ namespace Owin.Security.Providers.AzureAD
                 body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
 
                 // Request the token
-                HttpResponseMessage tokenResponse =
-                    await _httpClient.PostAsync(TokenEndpoint, new FormUrlEncodedContent(body));
-                tokenResponse.EnsureSuccessStatusCode();
-                string text = await tokenResponse.Content.ReadAsStringAsync();
-
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
+                httpRequest.Content = new FormUrlEncodedContent(body);
+                if (Options.RequestLogging) 
+                {
+                    _logger.WriteInformation(httpRequest.ToLogString());
+                }
+                var httpResponse = await _httpClient.SendAsync(httpRequest);
+                httpResponse.EnsureSuccessStatusCode();
+                string text = await httpResponse.Content.ReadAsStringAsync();
+                if (Options.ResponseLogging) 
+                {
+                    // Note: avoid using one of the Write* methods that takes a format string as input
+                    // because the curly brackets from a JSON response will be interpreted as
+                    // curly brackets for the format string and function will throw a FormatException
+                    _logger.WriteInformation(httpResponse.ToLogString());
+                }
                 // Deserializes the token response
                 JObject response = JsonConvert.DeserializeObject<JObject>(text);
                 string accessToken = response.Value<string>("access_token");
@@ -147,7 +158,8 @@ namespace Owin.Security.Providers.AzureAD
                 return Task.FromResult<object>(null);
             }
 
-            AuthenticationResponseChallenge challenge = Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
+            AuthenticationResponseChallenge challenge = 
+                Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
 
             if (challenge != null)
             {
@@ -182,7 +194,8 @@ namespace Owin.Security.Providers.AzureAD
 
                 // concatenate with spaces for now, like scope, although this option isn't clearly documented
                 string resource = string.Join(" ", Options.Resource);
-                if (string.IsNullOrEmpty(resource)) {
+                if (string.IsNullOrEmpty(resource)) 
+                {
                     // AzureAD asks for at least one resource. 
                     // If user didn't set it, set default resource to the AD Graph API.
                     resource = "https://graph.windows.net";
@@ -195,12 +208,11 @@ namespace Owin.Security.Providers.AzureAD
                 queryStrings.Add("state", state);
 
                 string authorizationEndpoint = WebUtilities.AddQueryString(AuthorizeEndpoint, queryStrings);
-
+                if (Options.RequestLogging) 
+                {
+                    _logger.WriteInformation(String.Format("GET {0}", authorizationEndpoint));
+                }
                 Response.Redirect(authorizationEndpoint);
-                //var redirectContext = new AzureADApplyRedirectContext(
-                //    Context, Options,
-                //    properties, authorizationEndpoint);
-                //Options.Provider.ApplyRedirect(redirectContext);
             }
 
             return Task.FromResult<object>(null);
@@ -236,7 +248,11 @@ namespace Owin.Security.Providers.AzureAD
                     ClaimsIdentity grantIdentity = context.Identity;
                     if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
                     {
-                        grantIdentity = new ClaimsIdentity(grantIdentity.Claims, context.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
+                        grantIdentity = new ClaimsIdentity(
+                            grantIdentity.Claims, 
+                            context.SignInAsAuthenticationType, 
+                            grantIdentity.NameClaimType, 
+                            grantIdentity.RoleClaimType);
                     }
                     Context.Authentication.SignIn(context.Properties, grantIdentity);
                 }
@@ -247,7 +263,7 @@ namespace Owin.Security.Providers.AzureAD
                     if (context.Identity == null)
                     {
                         // add a redirect hint that sign-in failed in some way
-                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "access_denied");
+                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "internal");
                     }
                     Response.Redirect(redirectUri);
                     context.RequestCompleted();
@@ -306,5 +322,30 @@ namespace Owin.Security.Providers.AzureAD
                 return null;
             }
         }
+    }
+
+
+    public static class AzureADAuthenticationHandlerExtensions 
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        public static string ToLogString(this HttpRequestMessage httpRequest) 
+        {
+            var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
+                new HttpMessageContent(httpRequest).ReadAsByteArrayAsync());
+            return System.Text.UTF8Encoding.UTF8.GetString(serializedRequest);
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public static string ToLogString(this HttpResponseMessage httpResponse) 
+        {
+            var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
+                new HttpMessageContent(httpResponse).ReadAsByteArrayAsync());
+            return System.Text.UTF8Encoding.UTF8.GetString(serializedRequest);
+        } 
     }
 }
