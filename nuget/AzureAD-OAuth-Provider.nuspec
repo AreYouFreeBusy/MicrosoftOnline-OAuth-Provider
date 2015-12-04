@@ -2,22 +2,23 @@
 <package>
   <metadata>
     <id>Owin.Security.Providers.AzureAD</id>
-    <version>1.1.0</version>
-    <title>Owin.Security.Providers.AzureAD</title>
-    <authors>Stefan Negritoiu</authors>
-    <owners>Stefan Negritoiu</owners>
+    <version>1.2.0</version>
+    <title>MicrosoftOnline and AzureAD OWIN Security Providers</title>
+    <authors>Stefan Negritoiu (FreeBusy)</authors>
+    <owners>Stefan Negritoiu (FreeBusy)</owners>
     <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
-    <projectUrl>https://github.com/AreYouFreeBusy/AzureAD-OAuth-Provider</projectUrl>
+    <projectUrl>https://github.com/AreYouFreeBusy/MicrosoftOnline-OAuth-Provider</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
-      AzureAD OAuth provider for OWIN to use with ASP.NET 4.5
+      Unified OAuth provider for Microsoft work, school, and personal accounts to be used with ASP.NET 4.5 OWIN
     </description>
     <releaseNotes>
-      Version 1.0.0: Introducing AzureAD OAuth provider for OWIN to use with ASP.NET 4.5
+      Version 1.0.0: Introducing AzureAD OAuth provider for Microsoft work and school (aka AzureAD) accounts
       Version 1.1.0: Add option to log OAuth request and response
+      Version 1.2.0: Introducing MicrosoftOnline OAuth provider which unifies authorization for Microsoft work, school, and personal accounts
     </releaseNotes>
     <copyright>Copyright 2015 Stefan Negritoiu</copyright>
-    <tags>owin katana oauth asp.net azure azuread ad adfs</tags>
+    <tags>microsoft account work school personal owin katana oauth asp.net azure azuread ad adfs</tags>
     <dependencies>
       <dependency id="Microsoft.AspNet.WebApi.Client" version="5.2.3" />
       <dependency id="Microsoft.Owin.Security" version="2.1.0" />
@@ -26,5 +27,6 @@
   </metadata>
   <files>
     <file src="..\AzureAD-OAuth-Provider\bin\Release\Owin.Security.Providers.AzureAD.dll" target="lib\net45" /> 
+    <file src="..\MicrosoftOnline-OAuth-Provider\bin\Release\Owin.Security.Providers.MicrosoftOnline.dll" target="lib\net45" /> 
   </files> 
 </package>
