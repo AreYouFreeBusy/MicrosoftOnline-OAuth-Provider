@@ -1,12 +1,11 @@
-AzureAD-OAuth-Provider
+MicrosoftOnline-OAuth-Provider
 ======================
 
-Azure AD is used by Office 365 tenants and supports authentication and authorization using OAuth2. 
+MicrosoftOnline is the unified OAuth and OpenID provider for both Azure AD (aka Microsoft work/school) accounts used with Office 365 and Microsoft Accounts (aka Microsoft personal) accounts used with Outlook.com.
 
-ASP.NET MVC 5 Web apps that use ASP.NET Identity 2.0 with OWIN as described at 
-http://www.asp.net/identity you can integrate with Office 365 REST APIs 
-http://msdn.microsoft.com/en-us/office/office365/api/api-catalog 
-using this middleware authentication provider (either for your tenant or multi-tenant). 
+Owin.Security.Providers.MicrosoftOnline provider supercedes both Owin.Security.Providers.AzureAD provider (which is a part of this repository) and Microsoft.Owin.Security.MicrosoftAccount provider (which is part of the Katana project).
+
+ASP.NET MVC 5 Web apps that use ASP.NET Identity 2.0 with OWIN as described at http://www.asp.net/identity can integrate with Office 365 and Outlook.com REST APIs using this middleware authentication provider (either for your tenant or multi-tenant). 
 
 This library was originally developed for and is in use at https://freebusy.io
 
@@ -14,4 +13,4 @@ This library is available as a NuGet package at https://www.nuget.org/packages/O
 
 How to Use
 ======================
-See an example of how to configure your ASP.NET web app at https://github.com/AreYouFreeBusy/AzureAD-OAuth-Provider/blob/master/AzureAD-OAuth-Demo/App_Start/Startup.Auth.cs
+See an example of how to configure your ASP.NET web app at https://github.com/AreYouFreeBusy/MicrosoftOnline-OAuth-Provider/blob/master/Sample/App_Start/Startup.Auth.cs
