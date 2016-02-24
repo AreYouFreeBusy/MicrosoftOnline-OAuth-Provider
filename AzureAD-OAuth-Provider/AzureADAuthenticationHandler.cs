@@ -203,6 +203,7 @@ namespace Owin.Security.Providers.AzureAD
                 AddQueryString(queryStrings, properties, "resource", resource);
                 AddQueryString(queryStrings, properties, "prompt");
                 AddQueryString(queryStrings, properties, "login_hint");
+                AddQueryString(queryStrings, properties, "domain_hint");
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);

@@ -212,6 +212,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 AddQueryString(queryStrings, properties, "response_mode");
                 AddQueryString(queryStrings, properties, "prompt");
                 AddQueryString(queryStrings, properties, "login_hint");
+                AddQueryString(queryStrings, properties, "domain_hint");
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);
