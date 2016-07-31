@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>Owin.Security.Providers.AzureAD</id>
-    <version>1.2.0</version>
+    <version>1.2.1</version>
     <title>MicrosoftOnline and AzureAD OWIN Security Providers</title>
     <authors>Stefan Negritoiu (FreeBusy)</authors>
     <owners>Stefan Negritoiu (FreeBusy)</owners>
@@ -14,8 +14,8 @@
     </description>
     <releaseNotes>
       Version 1.0.0: Introducing AzureAD OAuth provider for Microsoft work and school (aka AzureAD) accounts
-      Version 1.1.0: Add option to log OAuth request and response
       Version 1.2.0: Introducing MicrosoftOnline OAuth provider which unifies authorization for Microsoft work, school, and personal accounts
+      Version 1.2.1: Add support for 'msafed' parameter useful for organizational accounts
     </releaseNotes>
     <copyright>Copyright 2015 Stefan Negritoiu</copyright>
     <tags>microsoft account work school personal owin katana oauth asp.net azure azuread ad adfs</tags>
