@@ -2,16 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Security.Claims;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Owin;
 using Microsoft.Owin.Infrastructure;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security;
-using Microsoft.Owin.Security.DataHandler.Encoder;
 using Microsoft.Owin.Security.Infrastructure;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -213,6 +210,10 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 AddQueryString(queryStrings, properties, "prompt");
                 AddQueryString(queryStrings, properties, "login_hint");
                 AddQueryString(queryStrings, properties, "domain_hint");
+                // Microsoft-specific parameter
+                // msafed=0 forces the interpretation of login_hint as an organizational accoount
+                // and does not present to user the Work vs. Personal account picker
+                AddQueryString(queryStrings, properties, "msafed");
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);
