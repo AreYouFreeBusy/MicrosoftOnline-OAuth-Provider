@@ -6,4 +6,11 @@ namespace Owin.Security.Providers.MicrosoftOnline
     {
         public const string DefaultAuthenticationType = "MicrosoftOnline";
     }
+
+    public static class MicrosoftAccountType
+    {
+        public const string All = "common";
+        public const string WorkSchool = "organizations";
+        public const string Personal = "consumers";
+    }
 }

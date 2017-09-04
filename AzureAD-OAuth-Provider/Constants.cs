@@ -6,4 +6,11 @@ namespace Owin.Security.Providers.AzureAD
     {
         public const string DefaultAuthenticationType = "AzureAD";
     }
+
+    public static class MicrosoftAccountType
+    {
+        public const string All = "common";
+        public const string WorkSchool = "organizations";
+        public const string Personal = "consumers";
+    }
 }

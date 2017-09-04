@@ -39,6 +39,19 @@ namespace Owin.Security.Providers.AzureAD
         public IList<string> Resource { get; private set; }
 
         /// <summary>
+        ///     Gets or sets the kind of Microsoft Account or the tenant targeted for authentication
+        /// </summary>
+        private string _tenant;
+        public string Tenant {
+            get {
+                return _tenant ?? MicrosoftAccountType.All;
+            }
+            set {
+                _tenant = value;
+            }
+        }
+
+        /// <summary>
         ///     Controls whether request content is logged (verbose level). 
         ///     Not meant for use in production since data is sensitive (client secret, etc.).
         /// </summary>

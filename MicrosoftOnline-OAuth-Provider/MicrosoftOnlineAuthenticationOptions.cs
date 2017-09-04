@@ -39,6 +39,19 @@ namespace Owin.Security.Providers.MicrosoftOnline
         public IList<string> Scope { get; private set; }
 
         /// <summary>
+        ///     Gets or sets the kind of Microsoft Account or the tenant targeted for authentication
+        /// </summary>
+        private string _tenant;
+        public string Tenant {
+            get {
+                return _tenant ?? MicrosoftAccountType.All;
+            }
+            set {
+                _tenant = value;
+            }
+        }
+
+        /// <summary>
         ///     Method that should be used to send the resulting authorization_code back to your app. 
         ///     Can be one of 'query', 'form_post', or 'fragment'.
         /// </summary>

@@ -45,11 +45,16 @@ namespace Owin.Security.Providers.AzureAD
 
             if (idTokenObj != null) 
             {
-                // (OID represents the user's ID and TID the organization's ID)
-                Id = TryGetValue(idTokenObj, "oid");
+                // per https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-token-and-claims
+                Subject = TryGetValue(idTokenObj, "sub");
+                ObjectId = TryGetValue(idTokenObj, "oid");
+                TenantId = TryGetValue(idTokenObj, "tid");
                 Upn = TryGetValue(idTokenObj, "upn");
+                UserName = TryGetValue(idTokenObj, "unique_name");
+                Name = TryGetValue(idTokenObj, "name");
                 GivenName = TryGetValue(idTokenObj, "given_name");
                 FamilyName = TryGetValue(idTokenObj, "family_name");
+                AppId = TryGetValue(idTokenObj, "appid");
             }
         }
 
@@ -74,36 +79,54 @@ namespace Owin.Security.Providers.AzureAD
         public string RefreshToken { get; private set; }
 
         /// <summary>
-        /// Gets the user's ID
+        /// Gets the user's ID (unique across tenants; unique across applications)
         /// </summary>
-        public string Id { get; private set; }
+        public string Subject { get; private set; }
 
         /// <summary>
-        /// Gets the user's UPN
+        /// Gets the user's ID (unique across tenants; not unique across applications)
+        /// </summary>
+        public string ObjectId { get; private set; }
+
+        /// <summary>
+        /// Gets the tenant's ID
+        /// </summary>
+        public string TenantId { get; private set; }
+
+        /// <summary>
+        /// Gets the UPN
         /// </summary>
         public string Upn { get; private set; }
 
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the display UPN 
+        /// </summary>
+        public string UserName { get; private set; }
+
+        /// <summary>
+        /// Gets the email address
+        /// </summary>
+        public string Email { get; set; }
+
+        /// <summary>
+        /// Gets the user's first name
         /// </summary>
         public string GivenName { get; private set; }
         
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the user's last name
         /// </summary>
         public string FamilyName { get; private set; }
 
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the user's display name
         /// </summary>
-        public string Name 
-        {
-            get 
-            {
-                return String.Format("{0}{1}",
-                    !String.IsNullOrEmpty(GivenName) ? GivenName + " " : String.Empty, FamilyName);
-            }
-        }
+        public string Name { get; private set; }
+
+        /// <summary>
+        /// Gets the application ID for which token was issued
+        /// </summary>
+        public string AppId { get; private set; }
 
         /// <summary>
         /// 

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.Owin;
@@ -17,10 +18,12 @@ namespace Owin.Security.Providers.AzureAD
 {
     public class AzureADAuthenticationHandler : AuthenticationHandler<AzureADAuthenticationOptions>
     {
-        // see http://blogs.msdn.com/b/exchangedev/archive/2014/09/24/10510847.aspx for endpoint docs 
-        private const string AuthorizeEndpoint = "https://login.windows.net/common/oauth2/authorize";
-        private const string TokenEndpoint = "https://login.windows.net/common/oauth2/token";
+        // for endpoint docs see 
+        // https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-protocols-oauth-code 
+        private const string AuthorizeEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/authorize";
+        private const string TokenEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/token";
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
+        private const string UserInfoEndpoint = "https://outlook.office.com/api/v2.0/me";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -75,7 +78,8 @@ namespace Owin.Security.Providers.AzureAD
                 body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
 
                 // Request the token
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
+                var httpRequest =
+                    new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant));
                 httpRequest.Content = new FormUrlEncodedContent(body);
                 if (Options.RequestLogging) 
                 {
@@ -101,6 +105,20 @@ namespace Owin.Security.Providers.AzureAD
                 string pwdchange = response.Value<string>("pwd_url");
                 string idToken = response.Value<string>("id_token");
 
+                // get user info
+                string userDisplayName = null;
+                string userEmail = null;
+                var userRequest = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
+                userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var userResponse = await _httpClient.SendAsync(userRequest);
+                var userContent = await userResponse.Content.ReadAsStringAsync();
+                if (userResponse.IsSuccessStatusCode) 
+                {
+                    var userJson = JObject.Parse(userContent);
+                    userDisplayName = userJson["DisplayName"]?.Value<string>();
+                    userEmail = userJson["EmailAddress"]?.Value<string>();
+                }
+
                 // id_token should be a Base64 url encoded JSON web token
                 JObject id = null;
                 string[] segments;
@@ -115,25 +133,36 @@ namespace Owin.Security.Providers.AzureAD
                     ClaimsIdentity.DefaultNameClaimType,
                     ClaimsIdentity.DefaultRoleClaimType);
 
-                if (!string.IsNullOrEmpty(context.Id)) 
+                if (!string.IsNullOrEmpty(context.ObjectId)) 
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, context.Id, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(
+                        new Claim(ClaimTypes.NameIdentifier, context.ObjectId, XmlSchemaString, Options.AuthenticationType));
                 }
                 if (!string.IsNullOrEmpty(context.Upn)) 
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.Upn, context.Upn, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(
+                        new Claim(ClaimTypes.Upn, context.Upn, XmlSchemaString, Options.AuthenticationType));
+                }
+                if (!string.IsNullOrEmpty(userEmail)) 
+                {
+                    context.Email = userEmail;
+                    context.Identity.AddClaim(
+                        new Claim(ClaimTypes.Email, userEmail, XmlSchemaString, Options.AuthenticationType));
                 }
                 if (!string.IsNullOrEmpty(context.GivenName)) 
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.GivenName, context.GivenName, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(
+                        new Claim(ClaimTypes.GivenName, context.GivenName, XmlSchemaString, Options.AuthenticationType));
                 }
                 if (!string.IsNullOrEmpty(context.FamilyName)) 
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.Surname, context.FamilyName, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(
+                        new Claim(ClaimTypes.Surname, context.FamilyName, XmlSchemaString, Options.AuthenticationType));
                 }
-                if (!string.IsNullOrEmpty(context.Name)) 
+                if (!string.IsNullOrEmpty(userDisplayName) || !string.IsNullOrEmpty(context.Name)) 
                 {
-                    context.Identity.AddClaim(new Claim(ClaimsIdentity.DefaultNameClaimType, context.Name, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(
+                        new Claim(ClaimsIdentity.DefaultNameClaimType, userDisplayName ?? context.Name, XmlSchemaString, Options.AuthenticationType));
                 }
 
                 context.Properties = properties;
@@ -190,14 +219,12 @@ namespace Owin.Security.Providers.AzureAD
                 queryStrings.Add("client_id", Options.ClientId);
                 queryStrings.Add("redirect_uri", redirectUri);
 
+                // AzureAD requires at least one resource. If none provided, set default to the AD Graph API.
+                if (Options.Resource.Count == 0) Options.Resource.Add("https://graph.windows.net");
+
                 // concatenate with spaces for now, like scope, although this option isn't clearly documented
                 string resource = string.Join(" ", Options.Resource);
-                if (string.IsNullOrEmpty(resource)) 
-                {
-                    // AzureAD asks for at least one resource. 
-                    // If user didn't set it, set default resource to the AD Graph API.
-                    resource = "https://graph.windows.net";
-                }
+
                 AddQueryString(queryStrings, properties, "resource", resource);
                 AddQueryString(queryStrings, properties, "prompt");
                 AddQueryString(queryStrings, properties, "login_hint");
@@ -209,8 +236,11 @@ namespace Owin.Security.Providers.AzureAD
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);
+                queryStrings.Add("nonce", state);
 
-                string authorizationEndpoint = WebUtilities.AddQueryString(AuthorizeEndpoint, queryStrings);
+                string authorizationEndpoint =
+                    WebUtilities.AddQueryString(String.Format(AuthorizeEndpointFormat, Options.Tenant), queryStrings);
+
                 if (Options.RequestLogging) 
                 {
                     _logger.WriteInformation(String.Format("GET {0}", authorizationEndpoint));

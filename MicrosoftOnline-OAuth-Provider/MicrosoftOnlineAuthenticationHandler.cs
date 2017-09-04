@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.Owin;
@@ -17,12 +18,12 @@ namespace Owin.Security.Providers.MicrosoftOnline
 {
     public class MicrosoftOnlineAuthenticationHandler : AuthenticationHandler<MicrosoftOnlineAuthenticationOptions>
     {
-        // see https://azure.microsoft.com/en-us/documentation/articles/active-directory-v2-protocols-oauth-code/
-        // and https://msdn.microsoft.com/en-us/office/office365/howto/authentication-v2-protocols 
+        // see https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-protocols
         // for endpoint docs 
-        private const string AuthorizeEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
-        private const string TokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+        private const string AuthorizeEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/authorize";
+        private const string TokenEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
+        private const string UserInfoEndpoint = "https://outlook.office.com/api/v2.0/me";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -78,7 +79,8 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
 
                 // Request the token
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
+                var httpRequest = 
+                    new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant));
                 httpRequest.Content = new FormUrlEncodedContent(body);
                 if (Options.RequestLogging) 
                 {
@@ -101,14 +103,13 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 string expires = response.Value<string>("expires_in");
                 string refreshToken = response.Value<string>("refresh_token");
                 string idToken = response.Value<string>("id_token");
-                
+
                 // id_token should be a Base64 url encoded JSON web token
                 string[] segments;
                 if (!String.IsNullOrEmpty(idToken) && (segments = idToken.Split('.')).Length == 3) 
                 {
                     string payload = base64urldecode(segments[1]);
-                    if (!String.IsNullOrEmpty(payload))
-                        id = JObject.Parse(payload);
+                    if (!String.IsNullOrEmpty(payload)) id = JObject.Parse(payload);
                 }
 
                 var context = new MicrosoftOnlineAuthenticatedContext(Context, id, accessToken, scope, expires, refreshToken);
@@ -122,15 +123,35 @@ namespace Owin.Security.Providers.MicrosoftOnline
                     context.Identity.AddClaim(
                         new Claim(ClaimTypes.NameIdentifier, context.Subject, XmlSchemaString, Options.AuthenticationType));
                 }
-                if (!string.IsNullOrEmpty(context.UserName)) 
-                {
-                    context.Identity.AddClaim(
-                        new Claim(ClaimTypes.Upn, context.UserName, XmlSchemaString, Options.AuthenticationType));
-                }
                 if (!string.IsNullOrEmpty(context.Upn)) 
                 {
                     context.Identity.AddClaim(
                         new Claim(ClaimTypes.Upn, context.Upn, XmlSchemaString, Options.AuthenticationType));
+                }
+                if (!string.IsNullOrEmpty(context.Email)) 
+                {
+                    context.Identity.AddClaim(
+                        new Claim(ClaimTypes.Email, context.Email, XmlSchemaString, Options.AuthenticationType));
+                }
+                else 
+                {
+                    // get user email address from UserInfo endpoint
+                    string userEmail = null;
+                    var userRequest = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
+                    userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                    var userResponse = await _httpClient.SendAsync(userRequest);
+                    var userContent = await userResponse.Content.ReadAsStringAsync();
+                    if (userResponse.IsSuccessStatusCode) 
+                    {
+                        var userJson = JObject.Parse(userContent);
+                        userEmail = userJson["EmailAddress"]?.Value<string>();
+                    }
+                    if (!string.IsNullOrEmpty(userEmail)) 
+                    {
+                        context.Email = userEmail;
+                        context.Identity.AddClaim(
+                            new Claim(ClaimTypes.Email, userEmail, XmlSchemaString, Options.AuthenticationType));
+                    }
                 }
                 if (!string.IsNullOrEmpty(context.GivenName)) 
                 {
@@ -210,16 +231,13 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 AddQueryString(queryStrings, properties, "prompt");
                 AddQueryString(queryStrings, properties, "login_hint");
                 AddQueryString(queryStrings, properties, "domain_hint");
-                // Microsoft-specific parameter
-                // msafed=0 forces the interpretation of login_hint as an organizational accoount
-                // and does not present to user the Work vs. Personal account picker
-                AddQueryString(queryStrings, properties, "msafed");
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);
                 //queryStrings.Add("nonce", state);
 
-                string authorizationEndpoint = WebUtilities.AddQueryString(AuthorizeEndpoint, queryStrings);
+                string authorizationEndpoint = 
+                    WebUtilities.AddQueryString(String.Format(AuthorizeEndpointFormat, Options.Tenant), queryStrings);
                 if (Options.RequestLogging) 
                 {
                     _logger.WriteInformation(String.Format("GET {0}", authorizationEndpoint));

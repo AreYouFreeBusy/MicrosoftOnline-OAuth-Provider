@@ -39,15 +39,17 @@ namespace Owin.Security.Providers.MicrosoftOnline
 
             if (idTokenObj != null) 
             {
-                // per https://msdn.microsoft.com/en-us/office/office365/howto/authentication-v2-token-reference
+                // per https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-tokens
                 Subject = TryGetValue(idTokenObj, "sub");
                 ObjectId = TryGetValue(idTokenObj, "oid");
                 TenantId = TryGetValue(idTokenObj, "tid");
                 Upn = TryGetValue(idTokenObj, "upn");
                 UserName = TryGetValue(idTokenObj, "preferred_username");
+                Email = TryGetValue(idTokenObj, "email");
                 Name = TryGetValue(idTokenObj, "name");
                 GivenName = TryGetValue(idTokenObj, "given_name");
                 FamilyName = TryGetValue(idTokenObj, "family_name");
+                AppId = TryGetValue(idTokenObj, "aud");
             }
         }
 
@@ -72,45 +74,65 @@ namespace Owin.Security.Providers.MicrosoftOnline
         public string RefreshToken { get; private set; }
 
         /// <summary>
-        /// Gets the user's ID
+        /// Gets the user's ID (unique across tenants; unique across applications)
         /// </summary>
         public string Subject { get; private set; }
 
         /// <summary>
-        /// Gets the user's ID
+        /// Gets the user's ID (unique across tenants; not unique across applications)
         /// </summary>
         public string ObjectId { get; private set; }
 
         /// <summary>
-        /// Gets the user's ID
+        /// Gets the tenant's ID
         /// </summary>
-        public string TenantId { get; private set;
-        }
+        public string TenantId { get; private set; }
 
         /// <summary>
-        /// Gets the user's UPN
+        /// Gets the UPN
         /// </summary>
         public string Upn { get; private set; }
 
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the display UPN 
+        /// </summary>
+        public string UserName { get; private set; }
+
+        /// <summary>
+        /// Gets the email address
+        /// </summary>
+        public string Email { get; set; }
+
+        /// <summary>
+        /// Gets the user's first name
         /// </summary>
         public string GivenName { get; private set; }
         
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the user's last name
         /// </summary>
         public string FamilyName { get; private set; }
 
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the user's display name
         /// </summary>
         public string Name { get; private set; }
 
         /// <summary>
-        /// Gets the user's full name
+        /// Gets the application ID for which token was issued
         /// </summary>
-        public string UserName { get; private set; } 
+        public string AppId { get; private set; }
+
+        /// <summary>
+        /// Per docs "tid" is fixed to 9188040d-6c67-4c5b-b112-36a304b66dad for personal MSA.
+        /// </summary>
+        public bool? IsPersonalMicrosoftAccount {
+            get {
+                return !string.IsNullOrEmpty(TenantId) ? 
+                    (bool?)(TenantId == "9188040d-6c67-4c5b-b112-36a304b66dad") : 
+                    null; 
+            }
+        }
 
         /// <summary>
         /// Gets the <see cref="ClaimsIdentity"/> representing the user
