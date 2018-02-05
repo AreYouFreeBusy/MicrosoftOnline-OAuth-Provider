@@ -23,7 +23,8 @@ namespace Owin.Security.Providers.AzureAD
         private const string AuthorizeEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/authorize";
         private const string TokenEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/token";
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
-        private const string UserInfoEndpoint = "https://outlook.office.com/api/v2.0/me";
+        private const string UserInfoEndpoint = "https://graph.windows.net/me?api-version=1.6";
+        private const string UserInfoResource = "https://graph.windows.net";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -34,6 +35,8 @@ namespace Owin.Security.Providers.AzureAD
             _logger = logger;
         }
 
+
+        #region implement base class methods
         protected override async Task<AuthenticationTicket> AuthenticateCoreAsync()
         {
             AuthenticationProperties properties = null;
@@ -88,7 +91,7 @@ namespace Owin.Security.Providers.AzureAD
                 }
                 var httpResponse = await _httpClient.SendAsync(httpRequest);
                 httpResponse.EnsureSuccessStatusCode();
-                string text = await httpResponse.Content.ReadAsStringAsync();
+                string content = await httpResponse.Content.ReadAsStringAsync();
                 if (Options.ResponseLogging) 
                 {
                     // Note: avoid using one of the Write* methods that takes a format string as input
@@ -97,38 +100,24 @@ namespace Owin.Security.Providers.AzureAD
                     _logger.WriteInformation(httpResponse.ToLogString());
                 }
                 // Deserializes the token response
-                JObject response = JsonConvert.DeserializeObject<JObject>(text);
-                string accessToken = response.Value<string>("access_token");
-                string scope = response.Value<string>("scope");
-                string expires = response.Value<string>("expires_in");
-                string refreshToken = response.Value<string>("refresh_token");
-                string pwdexpires = response.Value<string>("pwd_exp");
-                string pwdchange = response.Value<string>("pwd_url");
-                string idToken = response.Value<string>("id_token");
+                var tokenResponse = JsonConvert.DeserializeObject<JObject>(content);
+                string accessToken = tokenResponse["access_token"].Value<string>();
+                string expires = tokenResponse.Value<string>("expires_in");
+                string refreshToken = tokenResponse.Value<string>("refresh_token");
 
                 // get user info
                 string userDisplayName = null;
                 string userEmail = null;
-                var userRequest = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
-                userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                var userResponse = await _httpClient.SendAsync(userRequest);
-                var userContent = await userResponse.Content.ReadAsStringAsync();
-                if (userResponse.IsSuccessStatusCode) 
+                var userInfoAccessToken =
+                    Options.Resource != UserInfoResource ? await GetUserInfoAccessToken(code) : accessToken;
+                var userJson = await GetUserInfoAsync(userInfoAccessToken);
+                if (userJson != null) 
                 {
-                    var userJson = JObject.Parse(userContent);
-                    userDisplayName = userJson["DisplayName"]?.Value<string>();
-                    userEmail = userJson["EmailAddress"]?.Value<string>();
+                    userDisplayName = userJson["displayName"]?.Value<string>();
+                    userEmail = userJson["mail"]?.Value<string>();
                 }
 
-                // id_token should be a Base64 url encoded JSON web token
-                JObject id = null;
-                string[] segments;
-                if (!String.IsNullOrEmpty(idToken) && (segments = idToken.Split('.')).Length == 3) {
-                    string payload = base64urldecode(segments[1]);
-                    if (!String.IsNullOrEmpty(payload)) id = JObject.Parse(payload);
-                }
-
-                var context = new AzureADAuthenticatedContext(Context, id, accessToken, scope, expires, refreshToken, pwdexpires, pwdchange);
+                var context = new AzureADAuthenticatedContext(Context, accessToken, expires, refreshToken, tokenResponse);
                 context.Identity = new ClaimsIdentity(
                     Options.AuthenticationType,
                     ClaimsIdentity.DefaultNameClaimType,
@@ -179,11 +168,11 @@ namespace Owin.Security.Providers.AzureAD
             }
         }
 
-        protected override Task ApplyResponseChallengeAsync()
+        protected async override Task ApplyResponseChallengeAsync()
         {
             if (Response.StatusCode != 401)
             {
-                return Task.FromResult<object>(null);
+                return;
             }
 
             AuthenticationResponseChallenge challenge = 
@@ -218,30 +207,29 @@ namespace Owin.Security.Providers.AzureAD
                 // OAuth2 10.12 CSRF
                 GenerateCorrelationId(properties);
 
-                var queryStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                queryStrings.Add("response_type", "code");
-                queryStrings.Add("client_id", Options.ClientId);
-                queryStrings.Add("redirect_uri", redirectUri);
-
+                var body = new List<KeyValuePair<string, string>>();
+                body.Add(new KeyValuePair<string, string>("response_type", "code"));
+                body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
+                body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
 
                 // AzureAD requires a specific resource to be used as the token audience
                 if (String.IsNullOrEmpty(Options.Resource)) Options.Resource = UserInfoResource;
 
-                AddQueryString(queryStrings, properties, "resource", resource);
-                AddQueryString(queryStrings, properties, "prompt");
-                AddQueryString(queryStrings, properties, "login_hint");
-                AddQueryString(queryStrings, properties, "domain_hint");
+                AddToQueryString(body, properties, "resource", Options.Resource);
+                AddToQueryString(body, properties, "prompt");
+                AddToQueryString(body, properties, "login_hint");
+                AddToQueryString(body, properties, "domain_hint");
                 // Microsoft-specific parameter
                 // msafed=0 forces the interpretation of login_hint as an organizational accoount
                 // and does not present to user the Work vs. Personal account picker
-                AddQueryString(queryStrings, properties, "msafed");
+                AddToQueryString(body, properties, "msafed");
 
                 string state = Options.StateDataFormat.Protect(properties);
-                queryStrings.Add("state", state);
-                queryStrings.Add("nonce", state);
+                body.Add(new KeyValuePair<string, string>("state", state));
+                body.Add(new KeyValuePair<string, string>("nonce", state));
 
-                string authorizationEndpoint =
-                    WebUtilities.AddQueryString(String.Format(AuthorizeEndpointFormat, Options.Tenant), queryStrings);
+                var queryString = await new FormUrlEncodedContent(body).ReadAsStringAsync();
+                string authorizationEndpoint = $"{String.Format(AuthorizeEndpointFormat, Options.Tenant)}?{queryString}";
 
                 if (Options.RequestLogging) 
                 {
@@ -253,7 +241,7 @@ namespace Owin.Security.Providers.AzureAD
                 Options.Provider.ApplyRedirect(redirectContext);
             }
 
-            return Task.FromResult<object>(null);
+            return;
         }
 
         public override async Task<bool> InvokeAsync()
@@ -311,8 +299,64 @@ namespace Owin.Security.Providers.AzureAD
             }
             return false;
         }
+        #endregion
 
-        private static void AddQueryString(IDictionary<string, string> queryStrings, AuthenticationProperties properties,
+
+        private async Task<string> GetUserInfoAccessToken(string authorizationCode) 
+        {
+            string requestPrefix = Request.Scheme + "://" + Request.Host;
+            string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
+
+            // Build up the body for the token request
+            var body = new List<KeyValuePair<string, string>>();
+            body.Add(new KeyValuePair<string, string>("grant_type", "authorization_code"));
+            body.Add(new KeyValuePair<string, string>("code", authorizationCode));
+            body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
+            body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
+            body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
+            body.Add(new KeyValuePair<string, string>("resource", UserInfoResource));
+
+            // Request the token
+            var httpRequest =
+                    new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant));
+            httpRequest.Content = new FormUrlEncodedContent(body);
+            if (Options.RequestLogging) {
+                _logger.WriteInformation(httpRequest.ToLogString());
+            }
+            var httpResponse = await _httpClient.SendAsync(httpRequest);
+            string content = await httpResponse.Content.ReadAsStringAsync();
+            if (Options.ResponseLogging) {
+                // Note: avoid using one of the Write* methods that takes a format string as input
+                // because the curly brackets from a JSON response will be interpreted as
+                // curly brackets for the format string and function will throw a FormatException
+                _logger.WriteInformation(httpResponse.ToLogString());
+            }
+            // Deserializes the token response
+            var tokenResponse = JsonConvert.DeserializeObject<JObject>(content);
+            string accessToken = tokenResponse["access_token"].Value<string>();
+
+            return accessToken;
+        }
+
+
+        private async Task<JObject> GetUserInfoAsync(string accessToken) 
+        {
+            var userRequest = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
+            userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            var userResponse = await _httpClient.SendAsync(userRequest);
+            var userContent = await userResponse.Content.ReadAsStringAsync();
+            if (!userResponse.IsSuccessStatusCode) 
+            {
+                return null;
+            }
+
+            return JObject.Parse(userContent);
+        }
+
+
+        private static void AddToQueryString(
+            List<KeyValuePair<string, string>> queryString, 
+            AuthenticationProperties properties, 
             string name, string defaultValue = null) 
         {
             string value;
@@ -331,7 +375,7 @@ namespace Owin.Security.Providers.AzureAD
                 return;
             }
 
-            queryStrings[name] = value;
+            queryString.Add(new KeyValuePair<string, string>(name, value));
         }
     }
 }
