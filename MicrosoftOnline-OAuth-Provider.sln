@@ -1,13 +1,18 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample", "Sample\Sample.csproj", "{8DA38B61-1DAC-4CCA-8B41-488F972597EB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureAD-OAuth-Provider", "AzureAD-OAuth-Provider\AzureAD-OAuth-Provider.csproj", "{40ED6DC4-BDA4-4580-855C-A2A9D3E9FDD7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicrosoftOnline-OAuth-Provider", "MicrosoftOnline-OAuth-Provider\MicrosoftOnline-OAuth-Provider.csproj", "{4167606D-25EF-4E36-A230-B824910BF29B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{D3498D1E-BCCF-4E84-A249-B5CAC90C0AC9}"
+	ProjectSection(SolutionItems) = preProject
+		nuget\AzureAD-OAuth-Provider.nuspec = nuget\AzureAD-OAuth-Provider.nuspec
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

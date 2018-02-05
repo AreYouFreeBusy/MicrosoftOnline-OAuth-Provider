@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>Owin.Security.Providers.AzureAD</id>
-    <version>1.3.0</version>
+    <version>1.4.0</version>
     <title>MicrosoftOnline and AzureAD OWIN Security Providers</title>
     <authors>Stefan Negritoiu (FreeBusy)</authors>
     <owners>Stefan Negritoiu (FreeBusy)</owners>
@@ -13,11 +13,10 @@
       Unified OAuth provider for Microsoft work, school, and personal accounts to be used with ASP.NET 4.5 OWIN
     </description>
     <releaseNotes>
-      Version 1.0.0: Introducing AzureAD OAuth provider for Microsoft work and school (aka AzureAD) accounts
-      Version 1.2.0: Introducing MicrosoftOnline OAuth provider which unifies authorization for Microsoft work, school, and personal accounts
-      Version 1.3.0: populate Email identity claim from Outlook REST API
+      1.3.0: populate Email identity claim from Outlook REST API
+      1.4.0: AzureAD Options.Resource is now of type string not string[] to match spec (breaking change); add BeforeRedirect interface and delegate to support incremental OAuth scope and resource; populate Email identity claim from Graph API
     </releaseNotes>
-    <copyright>Copyright 2015 Stefan Negritoiu</copyright>
+    <copyright>Copyright 2017 Stefan Negritoiu</copyright>
     <tags>microsoft account work school personal owin katana oauth asp.net azure azuread ad adfs</tags>
     <dependencies>
       <dependency id="Microsoft.AspNet.WebApi.Client" version="5.2.3" />
