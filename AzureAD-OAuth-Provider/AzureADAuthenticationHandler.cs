@@ -223,11 +223,9 @@ namespace Owin.Security.Providers.AzureAD
                 queryStrings.Add("client_id", Options.ClientId);
                 queryStrings.Add("redirect_uri", redirectUri);
 
-                // AzureAD requires at least one resource. If none provided, set default to the AD Graph API.
-                if (Options.Resource.Count == 0) Options.Resource.Add("https://graph.windows.net");
 
-                // concatenate with spaces for now, like scope, although this option isn't clearly documented
-                string resource = string.Join(" ", Options.Resource);
+                // AzureAD requires a specific resource to be used as the token audience
+                if (String.IsNullOrEmpty(Options.Resource)) Options.Resource = UserInfoResource;
 
                 AddQueryString(queryStrings, properties, "resource", resource);
                 AddQueryString(queryStrings, properties, "prompt");

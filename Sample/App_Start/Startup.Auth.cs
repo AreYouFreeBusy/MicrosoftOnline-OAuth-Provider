@@ -86,7 +86,7 @@ namespace Sample
             };
             // if an Office 365 subscription is attached to the Azure AD tenant you can ask for 
             // resource "https://outlook.office365.com/" and get access to Office 365 REST APIs
-            azureAdOptions.Resource.Add("https://graph.windows.net/");
+            azureAdOptions.Resource = "https://graph.windows.net/";
             app.UseAzureADAuthentication(azureAdOptions);
         }
     }

@@ -19,7 +19,6 @@ namespace Owin.Security.Providers.AzureAD
             CallbackPath = new PathString("/signin-azuread");
             AuthenticationMode = AuthenticationMode.Passive;
             BackchannelTimeout = TimeSpan.FromSeconds(60);
-            Resource = new List<string>();
             RequestLogging = false;
         }
 
@@ -34,9 +33,9 @@ namespace Owin.Security.Providers.AzureAD
         public string ClientSecret { get; set; }
 
         /// <summary>
-        ///     A list of permissions to request.
+        ///     The Resource Uri for which a token is being requested.
         /// </summary>
-        public IList<string> Resource { get; private set; }
+        public string Resource { get; set; }
 
         /// <summary>
         ///     Gets or sets the kind of Microsoft Account or the tenant targeted for authentication
