@@ -25,6 +25,12 @@ namespace Owin.Security.Providers.MicrosoftOnline
         Task ReturnEndpoint(MicrosoftOnlineReturnEndpointContext context);
 
         /// <summary>
+        /// Called when a Challenge causes a redirect to authorize endpoint in the AzureAD middleware, before the actual redirect.
+        /// </summary>
+        /// <param name="context">Contains redirect URI and <see cref="AuthenticationProperties"/> of the challenge </param>
+        void BeforeRedirect(MicrosoftOnlineBeforeRedirectContext context);
+
+        /// <summary>
         /// Called when a Challenge causes a redirect to authorize endpoint in the MicrosoftOnline middleware
         /// </summary>
         /// <param name="context">Contains redirect URI and <see cref="AuthenticationProperties"/> of the challenge </param>

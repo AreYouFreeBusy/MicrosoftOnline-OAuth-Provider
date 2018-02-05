@@ -60,11 +60,13 @@
   <ItemGroup>
     <Compile Include="AsyncHelpers.cs" />
     <Compile Include="AzureADAuthenticationExtensions.cs" />
+    <Compile Include="AzureADAuthenticationHandlerExtensions.cs" />
     <Compile Include="AzureADAuthenticationHandler.cs" />
     <Compile Include="AzureADAuthenticationMiddleware.cs" />
     <Compile Include="AzureADAuthenticationOptions.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Provider\AzureADBeforeRedirectContext.cs" />
     <Compile Include="Provider\AzureADApplyRedirectContext.cs" />
     <Compile Include="Provider\AzureADAuthenticatedContext.cs" />
     <Compile Include="Provider\AzureADAuthenticationProvider.cs" />

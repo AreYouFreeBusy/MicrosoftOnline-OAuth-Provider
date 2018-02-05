@@ -17,6 +17,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         {
             OnAuthenticated = context => Task.FromResult<object>(null);
             OnReturnEndpoint = context => Task.FromResult<object>(null);
+            OnBeforeRedirect = context => Task.FromResult<object>(null);
             OnApplyRedirect = context => context.Response.Redirect(context.RedirectUri);
         }
 
@@ -29,6 +30,11 @@ namespace Owin.Security.Providers.MicrosoftOnline
         /// Gets or sets the function that is invoked when the ReturnEndpoint method is invoked.
         /// </summary>
         public Func<MicrosoftOnlineReturnEndpointContext, Task> OnReturnEndpoint { get; set; }
+
+        /// <summary>
+        /// Gets or sets the delegate that is invoked when the BeforeRedirect method is invoked.
+        /// </summary>
+        public Action<MicrosoftOnlineBeforeRedirectContext> OnBeforeRedirect { get; set; }
 
         /// <summary>
         /// Gets or sets the delegate that is invoked when the ApplyRedirect method is invoked.
@@ -53,6 +59,15 @@ namespace Owin.Security.Providers.MicrosoftOnline
         public virtual Task ReturnEndpoint(MicrosoftOnlineReturnEndpointContext context)
         {
             return OnReturnEndpoint(context);
+        }
+
+        /// <summary>
+        /// Called when a Challenge causes a redirect to authorize endpoint in the AzureAD 2.0 middleware, before the actual redirect.
+        /// </summary>
+        /// <param name="context">Contains redirect URI and <see cref="AuthenticationProperties"/> of the challenge </param>
+        public virtual void BeforeRedirect(MicrosoftOnlineBeforeRedirectContext context) 
+        {
+            OnBeforeRedirect(context);
         }
 
         /// <summary>

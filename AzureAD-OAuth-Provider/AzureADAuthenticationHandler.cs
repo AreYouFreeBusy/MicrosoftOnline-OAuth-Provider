@@ -76,6 +76,7 @@ namespace Owin.Security.Providers.AzureAD
                 body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
                 body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
                 body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
+                body.Add(new KeyValuePair<string, string>("resource", Options.Resource));
 
                 // Request the token
                 var httpRequest =
@@ -190,6 +191,9 @@ namespace Owin.Security.Providers.AzureAD
 
             if (challenge != null)
             {
+                var beforeRedirectContext = new AzureADBeforeRedirectContext(Context, Options);
+                Options.Provider.BeforeRedirect(beforeRedirectContext);
+
                 string baseUri =
                     Request.Scheme +
                     Uri.SchemeDelimiter +
@@ -245,7 +249,10 @@ namespace Owin.Security.Providers.AzureAD
                 {
                     _logger.WriteInformation(String.Format("GET {0}", authorizationEndpoint));
                 }
-                Response.Redirect(authorizationEndpoint);
+
+                var redirectContext = 
+                    new AzureADApplyRedirectContext(Context, Options, properties, authorizationEndpoint);
+                Options.Provider.ApplyRedirect(redirectContext);
             }
 
             return Task.FromResult<object>(null);
@@ -328,57 +335,5 @@ namespace Owin.Security.Providers.AzureAD
 
             queryStrings[name] = value;
         }
-
-        /// <summary>
-        /// Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
-        /// </summary>
-        static string base64urldecode(string arg) 
-        {
-            string s = arg;
-            s = s.Replace('-', '+'); // 62nd char of encoding
-            s = s.Replace('_', '/'); // 63rd char of encoding
-            switch (s.Length % 4) // Pad with trailing '='s
-            {
-                case 0: break; // No pad chars in this case
-                case 2: s += "=="; break; // Two pad chars
-                case 3: s += "="; break; // One pad char
-                default: throw new System.Exception("Illegal base64url string!");
-            }
-
-            try 
-            {
-                System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();                
-                return encoding.GetString(Convert.FromBase64String(s)); // Standard base64 decoder
-            }
-            catch (FormatException) 
-            {
-                return null;
-            }
-        }
-    }
-
-
-    public static class AzureADAuthenticationHandlerExtensions 
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        public static string ToLogString(this HttpRequestMessage httpRequest) 
-        {
-            var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
-                new HttpMessageContent(httpRequest).ReadAsByteArrayAsync());
-            return System.Text.UTF8Encoding.UTF8.GetString(serializedRequest);
-        }
-
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public static string ToLogString(this HttpResponseMessage httpResponse) 
-        {
-            var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
-                new HttpMessageContent(httpResponse).ReadAsByteArrayAsync());
-            return System.Text.UTF8Encoding.UTF8.GetString(serializedRequest);
-        } 
     }
 }

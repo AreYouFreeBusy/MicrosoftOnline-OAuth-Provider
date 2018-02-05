@@ -25,6 +25,12 @@ namespace Owin.Security.Providers.AzureAD
         Task ReturnEndpoint(AzureADReturnEndpointContext context);
 
         /// <summary>
+        /// Called when a Challenge causes a redirect to authorize endpoint in the AzureAD middleware, before the actual redirect.
+        /// </summary>
+        /// <param name="context">Contains redirect URI and <see cref="AuthenticationProperties"/> of the challenge </param>
+        void BeforeRedirect(AzureADBeforeRedirectContext context);
+
+        /// <summary>
         /// Called when a Challenge causes a redirect to authorize endpoint in the AzureAD middleware
         /// </summary>
         /// <param name="context">Contains redirect URI and <see cref="AuthenticationProperties"/> of the challenge </param>

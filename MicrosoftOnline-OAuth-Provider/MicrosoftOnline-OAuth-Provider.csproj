@@ -65,6 +65,7 @@
     <Compile Include="MicrosoftOnlineAuthenticationOptions.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Provider\MicrosoftOnlineBeforeRedirectContext.cs" />
     <Compile Include="Provider\MicrosoftOnlineApplyRedirectContext.cs" />
     <Compile Include="Provider\MicrosoftOnlineAuthenticatedContext.cs" />
     <Compile Include="Provider\MicrosoftOnlineAuthenticationProvider.cs" />

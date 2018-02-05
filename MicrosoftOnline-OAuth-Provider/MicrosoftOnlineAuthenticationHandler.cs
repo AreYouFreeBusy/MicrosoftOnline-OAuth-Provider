@@ -194,6 +194,9 @@ namespace Owin.Security.Providers.MicrosoftOnline
 
             if (challenge != null)
             {
+                var beforeRedirectContext = new MicrosoftOnlineBeforeRedirectContext(Context, Options);
+                Options.Provider.BeforeRedirect(beforeRedirectContext);
+
                 string baseUri =
                     Request.Scheme +
                     Uri.SchemeDelimiter +
@@ -242,7 +245,10 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 {
                     _logger.WriteInformation(String.Format("GET {0}", authorizationEndpoint));
                 }
-                Response.Redirect(authorizationEndpoint);
+
+                var redirectContext = 
+                    new MicrosoftOnlineApplyRedirectContext(Context, Options, properties, authorizationEndpoint);
+                Options.Provider.ApplyRedirect(redirectContext);
             }
 
             return Task.FromResult<object>(null);
