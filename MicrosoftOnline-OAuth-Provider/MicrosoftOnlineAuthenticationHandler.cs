@@ -79,25 +79,30 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
 
                 // Request the token
-                var httpRequest = 
-                    new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant));
-                httpRequest.Content = new FormUrlEncodedContent(body);
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant)) {
+                    Content = new FormUrlEncodedContent(body)
+                };
                 if (Options.RequestLogging) 
                 {
-                    _logger.WriteInformation(httpRequest.ToLogString());
+                    _logger.WriteVerbose(httpRequest.ToLogString());
                 }
                 var httpResponse = await _httpClient.SendAsync(httpRequest);
-                httpResponse.EnsureSuccessStatusCode();
-                string text = await httpResponse.Content.ReadAsStringAsync();
-                if (Options.ResponseLogging) 
+                if (!httpResponse.IsSuccessStatusCode && Options.ErrorLogging) 
+                {
+                    _logger.WriteError(httpResponse.ToLogString());
+                }
+                else if (Options.ResponseLogging) 
                 {
                     // Note: avoid using one of the Write* methods that takes a format string as input
                     // because the curly brackets from a JSON response will be interpreted as
                     // curly brackets for the format string and function will throw a FormatException
-                    _logger.WriteInformation(httpResponse.ToLogString());
+                    _logger.WriteVerbose(httpResponse.ToLogString());
                 }
+                httpResponse.EnsureSuccessStatusCode();
+                string content = await httpResponse.Content.ReadAsStringAsync();
+                
                 // Deserializes the token response
-                JObject response = JsonConvert.DeserializeObject<JObject>(text);
+                JObject response = JsonConvert.DeserializeObject<JObject>(content);
                 string accessToken = response.Value<string>("access_token");
                 string scope = response.Value<string>("scope");
                 string expires = response.Value<string>("expires_in");
@@ -243,7 +248,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                     WebUtilities.AddQueryString(String.Format(AuthorizeEndpointFormat, Options.Tenant), queryStrings);
                 if (Options.RequestLogging) 
                 {
-                    _logger.WriteInformation(String.Format("GET {0}", authorizationEndpoint));
+                    _logger.WriteVerbose(String.Format("GET {0}", authorizationEndpoint));
                 }
 
                 var redirectContext = 

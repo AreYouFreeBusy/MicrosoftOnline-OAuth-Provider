@@ -63,6 +63,11 @@ namespace Owin.Security.Providers.AzureAD
         public bool ResponseLogging { get; set; }
 
         /// <summary>
+        ///     Controls whether error responses are logged. 
+        /// </summary>
+        public bool ErrorLogging { get; set; }
+
+        /// <summary>
         ///     Gets or sets the a pinned certificate validator to use to validate the endpoints used
         ///     in back channel communications belong to AzureAD
         /// </summary>
