@@ -50,20 +50,32 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 {
                     code = values[0];
                 }
+                else if (Options.ErrorLogging) 
+                {
+                    _logger.WriteError($"Could not find code on callback URL {Request.Uri.ToString()}");
+                }
+
                 values = query.GetValues("state");
                 if (values != null && values.Count == 1) 
                 {
                     state = values[0];
                 }
+                else if (Options.ErrorLogging) 
+                {
+                    _logger.WriteError($"Could not find state on callback URL {Request.Uri.ToString()}");
+                }
 
                 properties = Options.StateDataFormat.Unprotect(state);
-                if (properties == null) {
+                if (properties == null) 
+                {
+                    _logger.WriteError($"Could not decode state");
                     return null;
                 }
 
                 // OAuth2 10.12 CSRF
                 if (!ValidateCorrelationId(properties, _logger))
                 {
+                    _logger.WriteError($"Could not validate state");
                     return new AuthenticationTicket(null, properties);
                 }
 
