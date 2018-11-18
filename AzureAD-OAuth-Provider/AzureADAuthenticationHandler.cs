@@ -23,8 +23,12 @@ namespace Owin.Security.Providers.AzureAD
         private const string AuthorizeEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/authorize";
         private const string TokenEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/token";
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
-        private const string UserInfoEndpoint = "https://graph.windows.net/me?api-version=1.6";
-        private const string UserInfoResource = "https://graph.windows.net";
+
+        private const string GraphResource = "https://graph.windows.net";
+        private const string OutlookResource = "https://outlook.office365.com/";
+
+        private const string GraphUserInfoEndpoint = "https://graph.windows.net/me?api-version=1.6";
+        private const string OutlookUserInfoEndpoint = "https://outlook.office.com/api/v2.0/me";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -125,13 +129,20 @@ namespace Owin.Security.Providers.AzureAD
                 // get user info
                 string userDisplayName = null;
                 string userEmail = null;
-                var userInfoAccessToken =
-                    Options.Resource != UserInfoResource ? await GetUserInfoAccessToken(code) : accessToken;
-                var userJson = await GetUserInfoAsync(userInfoAccessToken);
-                if (userJson != null) 
+                if (!String.IsNullOrEmpty(accessToken) &&
+                    (Options.Resource == GraphResource || Options.Resource == OutlookResource)) 
                 {
-                    userDisplayName = userJson["displayName"]?.Value<string>();
-                    userEmail = userJson["mail"]?.Value<string>();
+                    var endpoint = Options.Resource == GraphResource ? GraphUserInfoEndpoint : OutlookUserInfoEndpoint;
+                    var userJson = await GetUserInfoAsync(endpoint, accessToken);
+                    if (userJson != null) 
+                    {
+                        userDisplayName = Options.Resource == GraphResource ?
+                            userJson["displayName"]?.Value<string>() : 
+                            userJson["DisplayName"]?.Value<string>();
+                        userEmail = Options.Resource == GraphResource ?
+                            userJson["mail"]?.Value<string>() : 
+                            userJson["EmailAddress"]?.Value<string>();
+                    }
                 }
 
                 var context = new AzureADAuthenticatedContext(Context, accessToken, expires, refreshToken, tokenResponse);
@@ -230,7 +241,7 @@ namespace Owin.Security.Providers.AzureAD
                 body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
 
                 // AzureAD requires a specific resource to be used as the token audience
-                if (String.IsNullOrEmpty(Options.Resource)) Options.Resource = UserInfoResource;
+                if (String.IsNullOrEmpty(Options.Resource)) Options.Resource = GraphResource;
 
                 AddToQueryString(body, properties, "resource", Options.Resource);
                 AddToQueryString(body, properties, "prompt");
@@ -331,7 +342,7 @@ namespace Owin.Security.Providers.AzureAD
             body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
             body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
             body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
-            body.Add(new KeyValuePair<string, string>("resource", UserInfoResource));
+            body.Add(new KeyValuePair<string, string>("resource", GraphResource));
 
             // Request the token
             var httpRequest =
@@ -356,9 +367,9 @@ namespace Owin.Security.Providers.AzureAD
         }
 
 
-        private async Task<JObject> GetUserInfoAsync(string accessToken) 
+        private async Task<JObject> GetUserInfoAsync(string userInfoEndpoint, string accessToken) 
         {
-            var userRequest = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
+            var userRequest = new HttpRequestMessage(HttpMethod.Get, userInfoEndpoint);
             userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var userResponse = await _httpClient.SendAsync(userRequest);
             var userContent = await userResponse.Content.ReadAsStringAsync();
