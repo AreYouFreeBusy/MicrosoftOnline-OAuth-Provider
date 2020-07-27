@@ -2,11 +2,11 @@
 <package>
   <metadata>
     <id>Owin.Security.Providers.AzureAD</id>
-    <version>1.4.3</version>
+    <version>1.5.0</version>
     <title>MicrosoftOnline and AzureAD OWIN Security Providers</title>
     <authors>Stefan Negritoiu (FreeBusy)</authors>
     <owners>Stefan Negritoiu (FreeBusy)</owners>
-    <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
+    <license type="expression">MIT</license>
     <projectUrl>https://github.com/AreYouFreeBusy/MicrosoftOnline-OAuth-Provider</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
@@ -14,8 +14,8 @@
     </description>
     <releaseNotes>
       1.4.0: AzureAD Options.Resource is now of type string not string[] to match spec (breaking change); add BeforeRedirect interface and delegate to support incremental OAuth scope and resource; populate Email identity claim from Graph API
-      1.4.2: add option to log error responses
       1.4.3: populate Email identity claim from AzureAD Graph API or Outlook REST API depending on which resource the token was issued for
+      1.5.0: introduce ability to specify cloud environment (Commercial, China, Germany, USGovernment) each with its own set of endpoints
     </releaseNotes>
     <copyright>Copyright (C) Stefan Negritoiu</copyright>
     <tags>microsoft account work school personal owin katana oauth asp.net azure azuread ad adfs</tags>
