@@ -2,9 +2,20 @@
 
 namespace Owin.Security.Providers.MicrosoftOnline
 {
-    internal static class Constants
+    public static class Constants
     {
         public const string DefaultAuthenticationType = "MicrosoftOnline";
+        public const string EnvironmentAuthenticationProperty = "Environment";
+    }
+
+    public static class Environment
+    {
+        public const string China = "China";
+        public const string Commercial = "Commercial";
+        public const string Germany = "Germany";
+        public const string USGovernment = "USGovernment";
+        public const string USGovernmentHigh = "USGovernmentHigh";
+        public const string USGovernmentDoD = "USGovernmentDoD";
     }
 
     public static class MicrosoftAccountType

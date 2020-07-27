@@ -34,6 +34,11 @@ namespace Owin.Security.Providers.MicrosoftOnline
         public string ClientSecret { get; set; }
 
         /// <summary>
+        ///     One of MicrosoftOnline.Environment values
+        /// </summary>
+        public string Environment { get; set; }
+
+        /// <summary>
         ///     A list of permissions to request.
         /// </summary>
         public IList<string> Scope { get; private set; }

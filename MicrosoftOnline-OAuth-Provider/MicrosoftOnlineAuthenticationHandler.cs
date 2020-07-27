@@ -18,12 +18,30 @@ namespace Owin.Security.Providers.MicrosoftOnline
 {
     public class MicrosoftOnlineAuthenticationHandler : AuthenticationHandler<MicrosoftOnlineAuthenticationOptions>
     {
-        // see https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-protocols
-        // for endpoint docs 
-        private const string AuthorizeEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/authorize";
-        private const string TokenEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
+        // for endpoint docs see
+        // https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-protocols
+        // https://docs.microsoft.com/en-us/azure/active-directory/develop/authentication-national-cloud
+        // https://docs.microsoft.com/en-us/azure/azure-government/documentation-government-developer-guide#endpoint-mapping
+        // https://docs.microsoft.com/en-us/graph/deployments
+
+        private const string AuthHost_China =            "https://login.chinacloudapi.cn";
+        private const string AuthHost_Commercial =       "https://login.microsoftonline.com";
+        private const string AuthHost_Germany =          "https://login.microsoftonline.de";
+        private const string AuthHost_USGovernment =     "https://login.microsoftonline.com";
+        private const string AuthHost_USGovernmentHigh = "https://login.microsoftonline.us";
+        private const string AuthHost_USGovernmentDoD =  "https://login.microsoftonline.us";
+
+        private const string GraphHost_China =            "https://microsoftgraph.chinacloudapi.cn";
+        private const string GraphHost_Commercial =       "https://graph.microsoft.com";
+        private const string GraphHost_Germany =          "https://graph.microsoft.de";
+        private const string GraphHost_USGovernment =     "https://graph.microsoft.com";
+        private const string GraphHost_USGovernmentHigh = "https://graph.microsoft.us";
+        private const string GraphHost_USGovernmentDoD =  "https://dod-graph.microsoft.us";
+
+        private const string AuthorizeEndpointFormat = "/{0}/oauth2/v2.0/authorize";
+        private const string TokenEndpointFormat = "/{0}/oauth2/v2.0/token";
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
-        private const string UserInfoEndpoint = "https://outlook.office.com/api/v2.0/me";
+        private const string UserInfoEndpoint = "/v1.0/me";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -52,7 +70,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 }
                 else if (Options.ErrorLogging) 
                 {
-                    _logger.WriteError($"Could not find code on callback URL {Request.Uri.ToString()}");
+                    _logger.WriteError($"Could not find code on callback URL {Request.Uri}");
                 }
 
                 values = query.GetValues("state");
@@ -62,7 +80,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 }
                 else if (Options.ErrorLogging) 
                 {
-                    _logger.WriteError($"Could not find state on callback URL {Request.Uri.ToString()}");
+                    _logger.WriteError($"Could not find state on callback URL {Request.Uri}");
                 }
 
                 properties = Options.StateDataFormat.Unprotect(state);
@@ -91,7 +109,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
 
                 // Request the token
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant)) {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, ComposeTokenEndpoint(properties)) {
                     Content = new FormUrlEncodedContent(body)
                 };
                 if (Options.RequestLogging) 
@@ -125,7 +143,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 string[] segments;
                 if (!String.IsNullOrEmpty(idToken) && (segments = idToken.Split('.')).Length == 3) 
                 {
-                    string payload = base64urldecode(segments[1]);
+                    string payload = Base64UrlDecode(segments[1]);
                     if (!String.IsNullOrEmpty(payload)) id = JObject.Parse(payload);
                 }
 
@@ -154,14 +172,14 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 {
                     // get user email address from UserInfo endpoint
                     string userEmail = null;
-                    var userRequest = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
+                    var userRequest = new HttpRequestMessage(HttpMethod.Get, ComposeUserInfoEndpoint(properties));
                     userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                     var userResponse = await _httpClient.SendAsync(userRequest);
                     var userContent = await userResponse.Content.ReadAsStringAsync();
                     if (userResponse.IsSuccessStatusCode) 
                     {
                         var userJson = JObject.Parse(userContent);
-                        userEmail = userJson["EmailAddress"]?.Value<string>();
+                        userEmail = userJson["mail"]?.Value<string>();
                     }
                     if (!string.IsNullOrEmpty(userEmail)) 
                     {
@@ -256,15 +274,13 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 queryStrings.Add("state", state);
                 //queryStrings.Add("nonce", state);
 
-                string authorizationEndpoint = 
-                    WebUtilities.AddQueryString(String.Format(AuthorizeEndpointFormat, Options.Tenant), queryStrings);
+                string authorizeEndpoint = WebUtilities.AddQueryString(ComposeAuthorizeEndpoint(properties), queryStrings);
                 if (Options.RequestLogging) 
                 {
-                    _logger.WriteVerbose(String.Format("GET {0}", authorizationEndpoint));
+                    _logger.WriteVerbose(String.Format("GET {0}", authorizeEndpoint));
                 }
 
-                var redirectContext = 
-                    new MicrosoftOnlineApplyRedirectContext(Context, Options, properties, authorizationEndpoint);
+                var redirectContext = new MicrosoftOnlineApplyRedirectContext(Context, Options, properties, authorizeEndpoint);
                 Options.Provider.ApplyRedirect(redirectContext);
             }
 
@@ -327,6 +343,106 @@ namespace Owin.Security.Providers.MicrosoftOnline
             return false;
         }
 
+        private string Environment2AuthHost(string environment) 
+        {
+            switch (environment) 
+            {
+                case Environment.China:
+                    return AuthHost_China;
+                case Environment.Commercial:
+                    return AuthHost_Commercial;
+                case Environment.Germany:
+                    return AuthHost_Germany;
+                case Environment.USGovernment:
+                    return AuthHost_USGovernment;
+                case Environment.USGovernmentHigh:
+                    return AuthHost_USGovernmentHigh;
+                case Environment.USGovernmentDoD:
+                    return AuthHost_USGovernmentDoD;
+                default:
+                    if (Options.ErrorLogging) 
+                    {
+                        _logger.WriteError($"Invalid value for {nameof(Constants.EnvironmentAuthenticationProperty)}");
+                    }
+                    return AuthHost_Commercial;
+            }
+        }
+
+        private string Environment2GraphHost(string environment) 
+        {
+            switch (environment) 
+            {
+                case Environment.China:
+                    return GraphHost_China;
+                case Environment.Commercial:
+                    return GraphHost_Commercial;
+                case Environment.Germany:
+                    return GraphHost_Germany;
+                case Environment.USGovernment:
+                    return GraphHost_USGovernment;
+                case Environment.USGovernmentHigh:
+                    return GraphHost_USGovernmentHigh;
+                case Environment.USGovernmentDoD:
+                    return GraphHost_USGovernmentDoD;
+                default:
+                    if (Options.ErrorLogging) 
+                    {
+                        _logger.WriteError($"Invalid value for {nameof(Constants.EnvironmentAuthenticationProperty)}");
+                    }
+                    return AuthHost_Commercial;
+            }
+        }
+
+        private string ComposeAuthorizeEndpoint(AuthenticationProperties properties) 
+        {
+            string endpointPath = String.Format(AuthorizeEndpointFormat, Options.Tenant);
+            return ComposeAuthEndpoint(properties, endpointPath);
+        }
+
+        private string ComposeTokenEndpoint(AuthenticationProperties properties) 
+        {
+            string endpointPath = String.Format(TokenEndpointFormat, Options.Tenant);
+            return ComposeAuthEndpoint(properties, endpointPath);
+        }
+
+        private string ComposeUserInfoEndpoint(AuthenticationProperties properties) 
+        {
+            string endpointPath = UserInfoEndpoint;
+            return ComposeGraphEndpoint(properties, endpointPath);
+        }
+
+        private string ComposeAuthEndpoint(AuthenticationProperties properties, string endpointPath) 
+        {
+            string endpoint = !String.IsNullOrEmpty(Options.Environment) ?
+                Environment2AuthHost(Options.Environment) + endpointPath :
+                AuthHost_Commercial + endpointPath;
+
+            // if AuthenticationProperties for this session specifies an environment property
+            // it should take precedence over the value in AuthenticationOptions
+            string environmentProperty;
+            if (properties.Dictionary.TryGetValue(Constants.EnvironmentAuthenticationProperty, out environmentProperty)) {
+                endpoint = Environment2AuthHost(environmentProperty) + endpointPath;
+            }
+
+            return endpoint;
+        }
+
+        private string ComposeGraphEndpoint(AuthenticationProperties properties, string endpointPath) 
+        {
+            string endpoint = !String.IsNullOrEmpty(Options.Environment) ?
+                Environment2GraphHost(Options.Environment) + endpointPath :
+                GraphHost_Commercial + endpointPath;
+
+            // if AuthenticationProperties for this session specifies an environment property
+            // it should take precedence over the value in AuthenticationOptions
+            string environmentProperty;
+            if (properties.Dictionary.TryGetValue(Constants.EnvironmentAuthenticationProperty, out environmentProperty)) {
+                endpoint = Environment2GraphHost(environmentProperty) + endpointPath;
+            }
+
+            return endpoint;
+        }
+
         private static void AddQueryString(IDictionary<string, string> queryStrings, AuthenticationProperties properties,
             string name, string defaultValue = null) 
         {
@@ -352,7 +468,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         /// <summary>
         /// Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
         /// </summary>
-        static string base64urldecode(string arg) 
+        static string Base64UrlDecode(string arg) 
         {
             string s = arg;
             s = s.Replace('-', '+'); // 62nd char of encoding
@@ -387,7 +503,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         {
             var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
                 new HttpMessageContent(httpRequest).ReadAsByteArrayAsync());
-            return System.Text.UTF8Encoding.UTF8.GetString(serializedRequest);
+            return System.Text.Encoding.UTF8.GetString(serializedRequest);
         }
 
 
@@ -398,7 +514,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         {
             var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
                 new HttpMessageContent(httpResponse).ReadAsByteArrayAsync());
-            return System.Text.UTF8Encoding.UTF8.GetString(serializedRequest);
+            return System.Text.Encoding.UTF8.GetString(serializedRequest);
         } 
     }
 }
