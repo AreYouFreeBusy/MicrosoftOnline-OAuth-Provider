@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -39,8 +40,8 @@ namespace Owin.Security.Providers.MicrosoftOnline
         private const string GraphHost_USGovernmentDoD =  "https://dod-graph.microsoft.us";
 
         private const string AdminConsentEndpointFormat = "/{0}/v2.0/adminconsent";
-        private const string AuthorizeEndpointFormat = "/{0}/oauth2/v2.0/authorize";
-        private const string TokenEndpointFormat = "/{0}/oauth2/v2.0/token";
+        private const string AuthorizeEndpointFormat =    "/{0}/oauth2/v2.0/authorize";
+        private const string TokenEndpointFormat =        "/{0}/oauth2/v2.0/token";
 
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
         private const string UserInfoEndpoint = "/v1.0/me";
@@ -311,8 +312,6 @@ namespace Owin.Security.Providers.MicrosoftOnline
         {
             if (Options.CallbackPath.HasValue && Options.CallbackPath == Request.Path)
             {
-                // TODO: error responses
-
                 AuthenticationTicket ticket = await AuthenticateAsync();
                 if (ticket == null)
                 {
@@ -321,16 +320,17 @@ namespace Owin.Security.Providers.MicrosoftOnline
                     return true;
                 }
 
-                var context = new MicrosoftOnlineReturnEndpointContext(Context, ticket);
-                context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
-                context.RedirectUri = ticket.Properties.RedirectUri;
+                var context = new MicrosoftOnlineReturnEndpointContext(Context, ticket) {
+                    SignInAsAuthenticationType = Options.SignInAsAuthenticationType,
+                    RedirectUri = ticket.Properties.RedirectUri
+                };
 
                 await Options.Provider.ReturnEndpoint(context);
 
                 if (context.SignInAsAuthenticationType != null && context.Identity != null)
                 {
                     ClaimsIdentity grantIdentity = context.Identity;
-                    if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
+                    if (!String.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
                     {
                         grantIdentity = new ClaimsIdentity(
                             grantIdentity.Claims, 
@@ -346,9 +346,24 @@ namespace Owin.Security.Providers.MicrosoftOnline
                     string redirectUri = context.RedirectUri;
                     if (context.Identity == null)
                     {
-                        // add a redirect hint that sign-in failed in some way
-                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "internal");
+                        // parse auth errors and include them on callback URL
+                        var query = context.Response.Get<IDictionary<string, string[]>>("Microsoft.Owin.Query#dictionary");
+                        if (query != null) 
+                        {
+                            if (query.ContainsKey("error")) 
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "error", query["error"].FirstOrDefault());
+                            if (query.ContainsKey("error_subcode"))
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "error_subcode", query["error_subcode"].FirstOrDefault());
+                            if (query.ContainsKey("error_description"))
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "error_description", query["error_description"].FirstOrDefault());
+                        }
+                        else 
+                        {
+                            // add a redirect hint that sign-in failed in some way
+                            redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "internal");
+                        }
                     }
+
                     Response.Redirect(redirectUri);
                     context.RequestCompleted();
                 }

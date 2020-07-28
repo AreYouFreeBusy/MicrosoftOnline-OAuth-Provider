@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -89,16 +90,19 @@ namespace Owin.Security.Providers.AzureAD
                 string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
 
                 // Build up the body for the token request
-                var body = new List<KeyValuePair<string, string>>();
-                body.Add(new KeyValuePair<string, string>("grant_type", "authorization_code"));
-                body.Add(new KeyValuePair<string, string>("code", code));
-                body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
-                body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
-                body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
-                body.Add(new KeyValuePair<string, string>("resource", Options.Resource));
+                var body = new List<KeyValuePair<string, string>> 
+                {
+                    new KeyValuePair<string, string>("grant_type", "authorization_code"),
+                    new KeyValuePair<string, string>("code", code),
+                    new KeyValuePair<string, string>("redirect_uri", redirectUri),
+                    new KeyValuePair<string, string>("client_id", Options.ClientId),
+                    new KeyValuePair<string, string>("client_secret", Options.ClientSecret),
+                    new KeyValuePair<string, string>("resource", Options.Resource)
+                };
 
                 // Request the token
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant)) {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant)) 
+                {
                     Content = new FormUrlEncodedContent(body)
                 };
                 if (Options.RequestLogging) 
@@ -235,10 +239,12 @@ namespace Owin.Security.Providers.AzureAD
                 // OAuth2 10.12 CSRF
                 GenerateCorrelationId(properties);
 
-                var body = new List<KeyValuePair<string, string>>();
-                body.Add(new KeyValuePair<string, string>("response_type", "code"));
-                body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
-                body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
+                var body = new List<KeyValuePair<string, string>> 
+                {
+                    new KeyValuePair<string, string>("response_type", "code"),
+                    new KeyValuePair<string, string>("client_id", Options.ClientId),
+                    new KeyValuePair<string, string>("redirect_uri", redirectUri)
+                };
 
                 // AzureAD requires a specific resource to be used as the token audience
                 if (String.IsNullOrEmpty(Options.Resource)) Options.Resource = GraphResource;
@@ -281,8 +287,6 @@ namespace Owin.Security.Providers.AzureAD
         {
             if (Options.CallbackPath.HasValue && Options.CallbackPath == Request.Path)
             {
-                // TODO: error responses
-
                 AuthenticationTicket ticket = await AuthenticateAsync();
                 if (ticket == null)
                 {
@@ -314,11 +318,24 @@ namespace Owin.Security.Providers.AzureAD
                 if (!context.IsRequestCompleted && context.RedirectUri != null)
                 {
                     string redirectUri = context.RedirectUri;
-                    if (context.Identity == null)
+                    if (context.Identity == null) 
                     {
-                        // add a redirect hint that sign-in failed in some way
-                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "internal");
+                        // parse auth errors and include them on callback URL
+                        var query = context.Response.Get<IDictionary<string, string[]>>("Microsoft.Owin.Query#dictionary");
+                        if (query != null) {
+                            if (query.ContainsKey("error"))
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "error", query["error"].FirstOrDefault());
+                            if (query.ContainsKey("error_subcode"))
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "error_subcode", query["error_subcode"].FirstOrDefault());
+                            if (query.ContainsKey("error_description"))
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "error_description", query["error_description"].FirstOrDefault());
+                        }
+                        else {
+                            // add a redirect hint that sign-in failed in some way
+                            redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "internal");
+                        }
                     }
+
                     Response.Redirect(redirectUri);
                     context.RequestCompleted();
                 }
