@@ -272,7 +272,6 @@ namespace Owin.Security.Providers.MicrosoftOnline
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);
-                //queryStrings.Add("nonce", state);
 
                 string authorizeEndpoint = WebUtilities.AddQueryString(ComposeAuthorizeEndpoint(properties), queryStrings);
                 if (Options.RequestLogging) 
@@ -389,7 +388,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                     {
                         _logger.WriteError($"Invalid value for {nameof(Constants.EnvironmentAuthenticationProperty)}");
                     }
-                    return AuthHost_Commercial;
+                    return GraphHost_Commercial;
             }
         }
 
