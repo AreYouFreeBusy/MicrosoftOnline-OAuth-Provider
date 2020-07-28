@@ -101,15 +101,18 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
 
                 // Build up the body for the token request
-                var body = new List<KeyValuePair<string, string>>();
-                body.Add(new KeyValuePair<string, string>("grant_type", "authorization_code"));
-                body.Add(new KeyValuePair<string, string>("code", code));
-                body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
-                body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
-                body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
+                var body = new List<KeyValuePair<string, string>> 
+                {
+                    new KeyValuePair<string, string>("grant_type", "authorization_code"),
+                    new KeyValuePair<string, string>("code", code),
+                    new KeyValuePair<string, string>("redirect_uri", redirectUri),
+                    new KeyValuePair<string, string>("client_id", Options.ClientId),
+                    new KeyValuePair<string, string>("client_secret", Options.ClientSecret)
+                };
 
                 // Request the token
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, ComposeTokenEndpoint(properties)) {
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, ComposeTokenEndpoint(properties)) 
+                {
                     Content = new FormUrlEncodedContent(body)
                 };
                 if (Options.RequestLogging) 
@@ -256,19 +259,30 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 // OAuth2 10.12 CSRF
                 GenerateCorrelationId(properties);
 
-                var queryStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                // TODO: Live (MSA) doesn't yet support OpenID Connect i.e. id_token
-                // when it does, switch to asking for id_token in addition to access_token and refresh_token
-                //queryStrings.Add("response_type", "id_token code");                
-                queryStrings.Add("response_type", "code");
-                queryStrings.Add("client_id", Options.ClientId);
-                queryStrings.Add("redirect_uri", redirectUri);
-
-                AddQueryString(queryStrings, properties, "scope", string.Join(" ", Options.Scope));
+                var queryStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) 
+                {
+                    { "response_type", "code" },
+                    { "client_id", Options.ClientId },
+                    { "redirect_uri", redirectUri }
+                };
                 AddQueryString(queryStrings, properties, "response_mode");
                 AddQueryString(queryStrings, properties, "prompt");
                 AddQueryString(queryStrings, properties, "login_hint");
                 AddQueryString(queryStrings, properties, "domain_hint");
+
+                // if AuthenticationProperties for this session specifies a scope property
+                // it should take precedence over the value in AuthenticationOptions
+                string scopeProperty;
+                if (properties.Dictionary.TryGetValue(Constants.ScopeAuthenticationProperty, out scopeProperty) &&
+                    !String.IsNullOrWhiteSpace(scopeProperty)) 
+                {
+                    // Assumption that scopeProperty is correctly formatted
+                    AddQueryString(queryStrings, properties, "scope", scopeProperty);
+                }
+                else 
+                {
+                    AddQueryString(queryStrings, properties, "scope", String.Join(" ", Options.Scope));
+                }
 
                 string state = Options.StateDataFormat.Protect(properties);
                 queryStrings.Add("state", state);

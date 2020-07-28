@@ -5,6 +5,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
     public static class Constants
     {
         public const string DefaultAuthenticationType = "MicrosoftOnline";
+        public const string ScopeAuthenticationProperty = "Scope";
         public const string EnvironmentAuthenticationProperty = "Environment";
     }
 
