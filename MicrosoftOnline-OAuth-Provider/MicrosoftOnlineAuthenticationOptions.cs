@@ -20,6 +20,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
             AuthenticationMode = AuthenticationMode.Passive;
             BackchannelTimeout = TimeSpan.FromSeconds(60);
             Scope = new List<string>();
+            AdminConsent = false;
             RequestLogging = false;
         }
 
@@ -55,6 +56,11 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 _tenant = value;
             }
         }
+
+        /// <summary>
+        ///     True to request admin consent flow
+        /// </summary>
+        public bool AdminConsent { get; set; }
 
         /// <summary>
         ///     Method that should be used to send the resulting authorization_code back to your app. 

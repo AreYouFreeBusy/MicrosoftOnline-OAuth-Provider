@@ -38,8 +38,10 @@ namespace Owin.Security.Providers.MicrosoftOnline
         private const string GraphHost_USGovernmentHigh = "https://graph.microsoft.us";
         private const string GraphHost_USGovernmentDoD =  "https://dod-graph.microsoft.us";
 
+        private const string AdminConsentEndpointFormat = "/{0}/v2.0/adminconsent";
         private const string AuthorizeEndpointFormat = "/{0}/oauth2/v2.0/authorize";
         private const string TokenEndpointFormat = "/{0}/oauth2/v2.0/token";
+
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
         private const string UserInfoEndpoint = "/v1.0/me";
 
@@ -409,6 +411,22 @@ namespace Owin.Security.Providers.MicrosoftOnline
         private string ComposeAuthorizeEndpoint(AuthenticationProperties properties) 
         {
             string endpointPath = String.Format(AuthorizeEndpointFormat, Options.Tenant);
+            bool adminConsent = Options.AdminConsent;
+            
+            // if AuthenticationProperties for this session specifies an admin_consent property
+            // it should take precedence over the value in AuthenticationOptions
+            string adminConsentProperty;
+            bool adminConsentValue;
+            if (properties.Dictionary.TryGetValue(Constants.AdminConsentAuthenticationProperty, out adminConsentProperty) &&
+                bool.TryParse(adminConsentProperty, out adminConsentValue)) 
+            {
+                adminConsent = adminConsentValue;
+            }
+            if (adminConsent) 
+            {
+                endpointPath = String.Format(AdminConsentEndpointFormat, Options.Tenant);
+            }
+
             return ComposeAuthEndpoint(properties, endpointPath);
         }
 
@@ -433,7 +451,8 @@ namespace Owin.Security.Providers.MicrosoftOnline
             // if AuthenticationProperties for this session specifies an environment property
             // it should take precedence over the value in AuthenticationOptions
             string environmentProperty;
-            if (properties.Dictionary.TryGetValue(Constants.EnvironmentAuthenticationProperty, out environmentProperty)) {
+            if (properties.Dictionary.TryGetValue(Constants.EnvironmentAuthenticationProperty, out environmentProperty)) 
+            {
                 endpoint = Environment2AuthHost(environmentProperty) + endpointPath;
             }
 
@@ -449,7 +468,8 @@ namespace Owin.Security.Providers.MicrosoftOnline
             // if AuthenticationProperties for this session specifies an environment property
             // it should take precedence over the value in AuthenticationOptions
             string environmentProperty;
-            if (properties.Dictionary.TryGetValue(Constants.EnvironmentAuthenticationProperty, out environmentProperty)) {
+            if (properties.Dictionary.TryGetValue(Constants.EnvironmentAuthenticationProperty, out environmentProperty)) 
+            {
                 endpoint = Environment2GraphHost(environmentProperty) + endpointPath;
             }
 
@@ -491,7 +511,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 case 0: break; // No pad chars in this case
                 case 2: s += "=="; break; // Two pad chars
                 case 3: s += "="; break; // One pad char
-                default: throw new System.Exception("Illegal base64url string!");
+                default: throw new Exception("Illegal base64url string");
             }
 
             try 
@@ -514,8 +534,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         /// </summary>
         public static string ToLogString(this HttpRequestMessage httpRequest) 
         {
-            var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
-                new HttpMessageContent(httpRequest).ReadAsByteArrayAsync());
+            var serializedRequest = AsyncHelpers.RunSync(() => new HttpMessageContent(httpRequest).ReadAsByteArrayAsync());
             return System.Text.Encoding.UTF8.GetString(serializedRequest);
         }
 
@@ -525,8 +544,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         /// </summary>
         public static string ToLogString(this HttpResponseMessage httpResponse) 
         {
-            var serializedRequest = AsyncHelpers.RunSync<byte[]>(() =>
-                new HttpMessageContent(httpResponse).ReadAsByteArrayAsync());
+            var serializedRequest = AsyncHelpers.RunSync(() => new HttpMessageContent(httpResponse).ReadAsByteArrayAsync());
             return System.Text.Encoding.UTF8.GetString(serializedRequest);
         } 
     }
