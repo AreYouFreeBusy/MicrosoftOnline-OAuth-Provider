@@ -125,7 +125,7 @@ namespace Owin.Security.Providers.AzureAD
                 };
 
                 // Request the token
-                var httpRequest = new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant)) 
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, DetermineTenant(properties))) 
                 {
                     Content = new FormUrlEncodedContent(body)
                 };
@@ -287,7 +287,7 @@ namespace Owin.Security.Providers.AzureAD
                 body.Add(new KeyValuePair<string, string>("nonce", state));
 
                 var queryString = await new FormUrlEncodedContent(body).ReadAsStringAsync();
-                string authorizationEndpoint = $"{String.Format(AuthorizeEndpointFormat, Options.Tenant)}?{queryString}";
+                string authorizationEndpoint = $"{String.Format(AuthorizeEndpointFormat, DetermineTenant(properties))}?{queryString}";
 
                 if (Options.RequestLogging) 
                 {
@@ -380,40 +380,17 @@ namespace Owin.Security.Providers.AzureAD
         #endregion
 
 
-        private async Task<string> GetUserInfoAccessToken(string authorizationCode) 
+        private string DetermineTenant(AuthenticationProperties properties) 
         {
-            string requestPrefix = Request.Scheme + "://" + Request.Host;
-            string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
-
-            // Build up the body for the token request
-            var body = new List<KeyValuePair<string, string>>();
-            body.Add(new KeyValuePair<string, string>("grant_type", "authorization_code"));
-            body.Add(new KeyValuePair<string, string>("code", authorizationCode));
-            body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
-            body.Add(new KeyValuePair<string, string>("client_id", Options.ClientId));
-            body.Add(new KeyValuePair<string, string>("client_secret", Options.ClientSecret));
-            body.Add(new KeyValuePair<string, string>("resource", GraphResource));
-
-            // Request the token
-            var httpRequest =
-                    new HttpRequestMessage(HttpMethod.Post, String.Format(TokenEndpointFormat, Options.Tenant));
-            httpRequest.Content = new FormUrlEncodedContent(body);
-            if (Options.RequestLogging) {
-                _logger.WriteInformation(httpRequest.ToLogString());
+            string tenant = Options.Tenant;
+            // if AuthenticationProperties for this session specifies a tenant property
+            // it should take precedence over the value in AuthenticationOptions
+            string tenantProperty;
+            if (properties.Dictionary.TryGetValue(Constants.TenantAuthenticationProperty, out tenantProperty)) 
+            {
+                tenant = tenantProperty;
             }
-            var httpResponse = await _httpClient.SendAsync(httpRequest);
-            string content = await httpResponse.Content.ReadAsStringAsync();
-            if (Options.ResponseLogging) {
-                // Note: avoid using one of the Write* methods that takes a format string as input
-                // because the curly brackets from a JSON response will be interpreted as
-                // curly brackets for the format string and function will throw a FormatException
-                _logger.WriteInformation(httpResponse.ToLogString());
-            }
-            // Deserializes the token response
-            var tokenResponse = JsonConvert.DeserializeObject<JObject>(content);
-            string accessToken = tokenResponse["access_token"].Value<string>();
-
-            return accessToken;
+            return tenant;
         }
 
 

@@ -9,6 +9,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
         public const string AdminConsentAuthenticationProperty = "admin_consent";
         public const string EnvironmentAuthenticationProperty = "Environment";
         public const string ScopeAuthenticationProperty = "Scope";
+        public const string TenantAuthenticationProperty = "Tenant";
     }
 
     public static class Environment

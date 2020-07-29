@@ -2,9 +2,11 @@
 
 namespace Owin.Security.Providers.AzureAD
 {
-    internal static class Constants
+    public static class Constants
     {
         public const string DefaultAuthenticationType = "AzureAD";
+
+        public const string TenantAuthenticationProperty = "Tenant";
     }
 
     public static class MicrosoftAccountType

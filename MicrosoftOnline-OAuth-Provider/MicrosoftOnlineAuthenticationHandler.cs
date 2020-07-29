@@ -21,6 +21,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
     {
         // for endpoint docs see
         // https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-protocols
+        // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-admin-consent
         // https://docs.microsoft.com/en-us/azure/active-directory/develop/authentication-national-cloud
         // https://docs.microsoft.com/en-us/azure/azure-government/documentation-government-developer-guide#endpoint-mapping
         // https://docs.microsoft.com/en-us/graph/deployments
@@ -456,11 +457,24 @@ namespace Owin.Security.Providers.MicrosoftOnline
             }
         }
 
+        private string DetermineTenant(AuthenticationProperties properties) 
+        {
+            string tenant = Options.Tenant;
+            // if AuthenticationProperties for this session specifies a tenant property
+            // it should take precedence over the value in AuthenticationOptions
+            string tenantProperty;
+            if (properties.Dictionary.TryGetValue(Constants.TenantAuthenticationProperty, out tenantProperty)) 
+            {
+                tenant = tenantProperty;
+            }
+            return tenant;
+        }
+
         private string ComposeAuthorizeEndpoint(AuthenticationProperties properties) 
         {
-            string endpointPath = String.Format(AuthorizeEndpointFormat, Options.Tenant);
-            bool adminConsent = Options.AdminConsent;
+            string endpointPath = String.Format(AuthorizeEndpointFormat, DetermineTenant(properties));
             
+            bool adminConsent = Options.AdminConsent;            
             // if AuthenticationProperties for this session specifies an admin_consent property
             // it should take precedence over the value in AuthenticationOptions
             string adminConsentProperty;
@@ -472,7 +486,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
             }
             if (adminConsent) 
             {
-                endpointPath = String.Format(AdminConsentEndpointFormat, Options.Tenant);
+                endpointPath = String.Format(AdminConsentEndpointFormat, DetermineTenant(properties));
             }
 
             return ComposeAuthEndpoint(properties, endpointPath);
@@ -480,7 +494,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
 
         private string ComposeTokenEndpoint(AuthenticationProperties properties) 
         {
-            string endpointPath = String.Format(TokenEndpointFormat, Options.Tenant);
+            string endpointPath = String.Format(TokenEndpointFormat, DetermineTenant(properties));
             return ComposeAuthEndpoint(properties, endpointPath);
         }
 
