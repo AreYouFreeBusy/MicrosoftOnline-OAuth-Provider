@@ -21,15 +21,16 @@ namespace Owin.Security.Providers.AzureAD
     {
         // for endpoint docs see 
         // https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-protocols-oauth-code 
+        
         private const string AuthorizeEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/authorize";
-        private const string TokenEndpointFormat = "https://login.microsoftonline.com/{0}/oauth2/token";
-        private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
+        private const string TokenEndpointFormat =     "https://login.microsoftonline.com/{0}/oauth2/token";
+        private const string XmlSchemaString =         "http://www.w3.org/2001/XMLSchema#string";
 
-        private const string GraphResource = "https://graph.windows.net";
-        private const string OutlookResource = "https://outlook.office365.com/";
+        private const string GraphResource =            "https://graph.windows.net";
+        private const string OutlookResource =          "https://outlook.office365.com/";
 
-        private const string GraphUserInfoEndpoint = "https://graph.windows.net/me?api-version=1.6";
-        private const string OutlookUserInfoEndpoint = "https://outlook.office.com/api/v2.0/me";
+        private const string GraphUserInfoEndpoint =    "https://graph.windows.net/me?api-version=1.6";
+        private const string OutlookUserInfoEndpoint =  "https://outlook.office.com/api/v2.0/me";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -51,43 +52,66 @@ namespace Owin.Security.Providers.AzureAD
                 string code = null;
                 string state = null;
 
-                IReadableStringCollection query = Request.Query;
-                IList<string> values = query.GetValues("code");
-                if (values != null && values.Count == 1)
-                {
-                    code = values[0];
-                }
-                else if (Options.ErrorLogging)
-                {
-                    _logger.WriteError($"Could not find code on callback URL {Request.Uri.ToString()}");
-                }
+                string requestPrefix = Request.Scheme + "://" + Request.Host;
+                string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
 
-                values = query.GetValues("state");
+                IReadableStringCollection query = Request.Query;
+                IList<string> values = query.GetValues("state");
                 if (values != null && values.Count == 1) 
                 {
                     state = values[0];
                 }
-                else if (Options.ErrorLogging) 
+                else 
                 {
-                    _logger.WriteError($"Could not find state on callback URL {Request.Uri.ToString()}");
+                    if (Options.ErrorLogging)
+                    {
+                        LogError($"Could not find state on callback URL {Request.Uri}");
+                    }
+                    return new AuthenticationTicket(null, new AuthenticationProperties 
+                    {
+                        RedirectUri = redirectUri
+                    });
                 }
 
                 properties = Options.StateDataFormat.Unprotect(state);
                 if (properties == null) 
                 {
-                    _logger.WriteError($"Could not decode state");
-                    return null;
+                    if (Options.ErrorLogging)
+                    {
+                        LogError($"Could not decode state");
+                    }
+                    return new AuthenticationTicket(null, new AuthenticationProperties 
+                    {
+                        RedirectUri = redirectUri
+                    });
                 }
 
                 // OAuth2 10.12 CSRF
                 if (!ValidateCorrelationId(properties, _logger))
                 {
-                    _logger.WriteError($"Could not validate state");
-                    return new AuthenticationTicket(null, properties);
+                    if (Options.ErrorLogging) 
+                    {
+                        LogError($"Could not validate state");
+                    }
+                    return new AuthenticationTicket(null, new AuthenticationProperties 
+                    {
+                        RedirectUri = redirectUri
+                    });
                 }
 
-                string requestPrefix = Request.Scheme + "://" + Request.Host;
-                string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
+                values = query.GetValues("code");
+                if (values != null && values.Count == 1)
+                {
+                    code = values[0];
+                }
+                else 
+                {
+                    if (Options.ErrorLogging)
+                    {
+                        LogError($"Could not find code on callback URL {Request.Uri}");
+                    }
+                    return new AuthenticationTicket(null, properties);
+                }
 
                 // Build up the body for the token request
                 var body = new List<KeyValuePair<string, string>> 
@@ -270,8 +294,7 @@ namespace Owin.Security.Providers.AzureAD
                     _logger.WriteVerbose(String.Format("GET {0}", authorizationEndpoint));
                 }
 
-                var redirectContext = 
-                    new AzureADApplyRedirectContext(Context, Options, properties, authorizationEndpoint);
+                var redirectContext = new AzureADApplyRedirectContext(Context, Options, properties, authorizationEndpoint);
                 Options.Provider.ApplyRedirect(redirectContext);
             }
 
@@ -295,9 +318,11 @@ namespace Owin.Security.Providers.AzureAD
                     return true;
                 }
 
-                var context = new AzureADReturnEndpointContext(Context, ticket);
-                context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
-                context.RedirectUri = ticket.Properties.RedirectUri;
+                var context = new AzureADReturnEndpointContext(Context, ticket) 
+                {
+                    SignInAsAuthenticationType = Options.SignInAsAuthenticationType,
+                    RedirectUri = ticket.Properties.RedirectUri
+                };
 
                 await Options.Provider.ReturnEndpoint(context);
 
@@ -320,17 +345,25 @@ namespace Owin.Security.Providers.AzureAD
                     string redirectUri = context.RedirectUri;
                     if (context.Identity == null) 
                     {
-                        // parse auth errors and include them on callback URL
+                        // parse authorization errors and include them on callback URL
                         var query = context.Response.Get<IDictionary<string, string[]>>("Microsoft.Owin.Query#dictionary");
-                        if (query != null) {
+                        if (query != null) 
+                        {
                             if (query.ContainsKey("error"))
+                            {
                                 redirectUri = WebUtilities.AddQueryString(redirectUri, "error", query["error"].FirstOrDefault());
-                            if (query.ContainsKey("error_subcode"))
+                            }
+                            if (query.ContainsKey("error_subcode")) 
+                            {
                                 redirectUri = WebUtilities.AddQueryString(redirectUri, "error_subcode", query["error_subcode"].FirstOrDefault());
-                            if (query.ContainsKey("error_description"))
+                            }
+                            if (query.ContainsKey("error_description")) 
+                            {
                                 redirectUri = WebUtilities.AddQueryString(redirectUri, "error_description", query["error_description"].FirstOrDefault());
+                            }
                         }
-                        else {
+                        else 
+                        {
                             // add a redirect hint that sign-in failed in some way
                             redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "internal");
                         }
@@ -422,5 +455,11 @@ namespace Owin.Security.Providers.AzureAD
 
             queryString.Add(new KeyValuePair<string, string>(name, value));
         }
+
+        private void LogError(string message) 
+        {
+            _logger.WriteError($"{Options.AuthenticationType ?? Constants.DefaultAuthenticationType}: {message}");
+        }
+
     }
 }

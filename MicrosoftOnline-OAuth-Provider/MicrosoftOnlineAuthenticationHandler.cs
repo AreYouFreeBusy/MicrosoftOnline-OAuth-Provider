@@ -65,43 +65,66 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 string state = null;
                 JObject id = null;
 
-                IReadableStringCollection query = Request.Query;
-                IList<string> values = query.GetValues("code");
-                if (values != null && values.Count == 1)
-                {
-                    code = values[0];
-                }
-                else if (Options.ErrorLogging) 
-                {
-                    _logger.WriteError($"Could not find code on callback URL {Request.Uri}");
-                }
+                string requestPrefix = Request.Scheme + "://" + Request.Host;
+                string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
 
-                values = query.GetValues("state");
+                IReadableStringCollection query = Request.Query;
+                IList<string> values = query.GetValues("state");
                 if (values != null && values.Count == 1) 
                 {
                     state = values[0];
                 }
-                else if (Options.ErrorLogging) 
+                else 
                 {
-                    _logger.WriteError($"Could not find state on callback URL {Request.Uri}");
+                    if (Options.ErrorLogging)
+                    {
+                        LogError($"Could not find state on callback URL {Request.Uri}");
+                    }
+                    return new AuthenticationTicket(null, new AuthenticationProperties 
+                    {
+                        RedirectUri = redirectUri
+                    });
                 }
 
                 properties = Options.StateDataFormat.Unprotect(state);
                 if (properties == null) 
                 {
-                    _logger.WriteError($"Could not decode state");
-                    return null;
+                    if (Options.ErrorLogging)
+                    {
+                        LogError($"Could not decode state");
+                    }
+                    return new AuthenticationTicket(null, new AuthenticationProperties 
+                    {
+                        RedirectUri = redirectUri
+                    });
                 }
 
                 // OAuth2 10.12 CSRF
                 if (!ValidateCorrelationId(properties, _logger))
                 {
-                    _logger.WriteError($"Could not validate state");
-                    return new AuthenticationTicket(null, properties);
+                    if (Options.ErrorLogging) 
+                    {
+                        LogError($"Could not validate state");
+                    }
+                    return new AuthenticationTicket(null, new AuthenticationProperties 
+                    {
+                        RedirectUri = redirectUri
+                    });
                 }
 
-                string requestPrefix = Request.Scheme + "://" + Request.Host;
-                string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
+                values = query.GetValues("code");
+                if (values != null && values.Count == 1)
+                {
+                    code = values[0];
+                }
+                else 
+                {
+                    if (Options.ErrorLogging)
+                    {
+                        LogError($"Could not find code on callback URL {Request.Uri}");
+                    }
+                    return new AuthenticationTicket(null, properties);
+                }
 
                 // Build up the body for the token request
                 var body = new List<KeyValuePair<string, string>> 
@@ -315,7 +338,7 @@ namespace Owin.Security.Providers.MicrosoftOnline
                 AuthenticationTicket ticket = await AuthenticateAsync();
                 if (ticket == null)
                 {
-                    _logger.WriteWarning("Invalid return state, unable to redirect.");
+                    LogError("Invalid return state, unable to redirect.");
                     Response.StatusCode = 500;
                     return true;
                 }
@@ -346,16 +369,26 @@ namespace Owin.Security.Providers.MicrosoftOnline
                     string redirectUri = context.RedirectUri;
                     if (context.Identity == null)
                     {
-                        // parse auth errors and include them on callback URL
+                        // parse authorization errors and other status indicators and include them on callback URL
                         var query = context.Response.Get<IDictionary<string, string[]>>("Microsoft.Owin.Query#dictionary");
                         if (query != null) 
                         {
-                            if (query.ContainsKey("error")) 
+                            if (query.ContainsKey("error"))
+                            {
                                 redirectUri = WebUtilities.AddQueryString(redirectUri, "error", query["error"].FirstOrDefault());
-                            if (query.ContainsKey("error_subcode"))
+                            }
+                            if (query.ContainsKey("error_subcode")) 
+                            {
                                 redirectUri = WebUtilities.AddQueryString(redirectUri, "error_subcode", query["error_subcode"].FirstOrDefault());
-                            if (query.ContainsKey("error_description"))
+                            }
+                            if (query.ContainsKey("error_description")) 
+                            {
                                 redirectUri = WebUtilities.AddQueryString(redirectUri, "error_description", query["error_description"].FirstOrDefault());
+                            }
+                            if (query.ContainsKey("admin_consent")) 
+                            {
+                                redirectUri = WebUtilities.AddQueryString(redirectUri, "admin_consent", query["admin_consent"].FirstOrDefault());
+                            }
                         }
                         else 
                         {
@@ -513,6 +546,11 @@ namespace Owin.Security.Providers.MicrosoftOnline
             queryStrings[name] = value;
         }
 
+        private void LogError(string message) 
+        {
+            _logger.WriteError($"{Options.AuthenticationType ?? Constants.DefaultAuthenticationType}: {message}");
+        }
+
         /// <summary>
         /// Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08#appendix-C
         /// </summary>
@@ -544,19 +582,12 @@ namespace Owin.Security.Providers.MicrosoftOnline
 
     public static class MicrosoftOnlineAuthenticationHandlerExtensions 
     {
-        /// <summary>
-        /// 
-        /// </summary>
         public static string ToLogString(this HttpRequestMessage httpRequest) 
         {
             var serializedRequest = AsyncHelpers.RunSync(() => new HttpMessageContent(httpRequest).ReadAsByteArrayAsync());
             return System.Text.Encoding.UTF8.GetString(serializedRequest);
         }
 
-
-        /// <summary>
-        /// 
-        /// </summary>
         public static string ToLogString(this HttpResponseMessage httpResponse) 
         {
             var serializedRequest = AsyncHelpers.RunSync(() => new HttpMessageContent(httpResponse).ReadAsByteArrayAsync());
