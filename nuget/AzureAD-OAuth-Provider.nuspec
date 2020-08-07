@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>Owin.Security.Providers.AzureAD</id>
-    <version>1.5.5</version>
+    <version>1.5.6</version>
     <title>MicrosoftOnline and AzureAD OWIN Security Providers</title>
     <authors>Stefan Negritoiu (FreeBusy)</authors>
     <owners>Stefan Negritoiu (FreeBusy)</owners>
