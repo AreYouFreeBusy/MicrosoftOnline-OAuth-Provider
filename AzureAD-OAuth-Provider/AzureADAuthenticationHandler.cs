@@ -55,17 +55,24 @@ namespace Owin.Security.Providers.AzureAD
                 string requestPrefix = Request.Scheme + "://" + Request.Host;
                 string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
 
-                IReadableStringCollection query = Request.Query;
-                IList<string> values = query.GetValues("state");
-                if (values != null && values.Count == 1) 
+                var stateValues = Request.Query.GetValues("state");
+                var codeValues = Request.Query.GetValues("code");
+                var errorValues = Request.Query.GetValues("error");
+
+                if (stateValues == null && codeValues == null) 
                 {
-                    state = values[0];
+                    return null;
+                }
+
+                if (stateValues != null && stateValues.Count == 1) 
+                {
+                    state = stateValues[0];
                 }
                 else 
                 {
                     if (Options.ErrorLogging)
                     {
-                        LogError($"Could not find state on callback URL {Request.Uri}");
+                        LogWarning($"Could not find state on callback URL {Request.Uri}");
                     }
                     return new AuthenticationTicket(null, new AuthenticationProperties 
                     {
@@ -78,7 +85,7 @@ namespace Owin.Security.Providers.AzureAD
                 {
                     if (Options.ErrorLogging)
                     {
-                        LogError($"Could not decode state");
+                        LogWarning($"Could not decode state");
                     }
                     return new AuthenticationTicket(null, new AuthenticationProperties 
                     {
@@ -91,7 +98,7 @@ namespace Owin.Security.Providers.AzureAD
                 {
                     if (Options.ErrorLogging) 
                     {
-                        LogError($"Could not validate state");
+                        LogWarning($"Could not validate state");
                     }
                     return new AuthenticationTicket(null, new AuthenticationProperties 
                     {
@@ -99,14 +106,13 @@ namespace Owin.Security.Providers.AzureAD
                     });
                 }
 
-                values = query.GetValues("code");
-                if (values != null && values.Count == 1)
+                if (codeValues != null && codeValues.Count == 1)
                 {
-                    code = values[0];
+                    code = codeValues[0];
                 }
                 else 
                 {
-                    if (Options.ErrorLogging)
+                    if (errorValues == null && Options.ErrorLogging)
                     {
                         LogError($"Could not find code on callback URL {Request.Uri}");
                     }
@@ -313,8 +319,8 @@ namespace Owin.Security.Providers.AzureAD
                 AuthenticationTicket ticket = await AuthenticateAsync();
                 if (ticket == null)
                 {
-                    _logger.WriteWarning("Invalid return state, unable to redirect.");
-                    Response.StatusCode = 500;
+                    LogWarning("Invalid return state, unable to redirect.");
+                    Response.StatusCode = 400;
                     return true;
                 }
 
@@ -431,6 +437,11 @@ namespace Owin.Security.Providers.AzureAD
             }
 
             queryString.Add(new KeyValuePair<string, string>(name, value));
+        }
+
+        private void LogWarning(string message) 
+        {
+            _logger.WriteWarning($"{Options.AuthenticationType ?? Constants.DefaultAuthenticationType}: {message}");
         }
 
         private void LogError(string message) 
